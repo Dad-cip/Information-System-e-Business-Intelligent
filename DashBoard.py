@@ -37,32 +37,24 @@ def load_data(url, data):
     df.fillna(method='ffill', inplace=True)
     #df[data] = df.index.date     # Cancella le ore dalla colonna "Date"
     df['temperature_mean'] = df['temperature_mean'].str.replace(',', '.').astype(float)
+    df['selected'] = [False] * len(df)      # Aggiunge una colonna che permette di selezionare una riga
     return df
 
 df = load_data(url, data_url)
 df_target = load_data(url_target, data_url_target)
 
-#df_target['temperature_mean'] = df_target['temperature_mean'].str.replace(',', '.').astype(float)
-
-
-#fig = px.scatter(x=df_target['Date'], y=df_target['relativehumidity_mean'])
-#fig.add_scatter(x=df_target['Date'], y=df_target['temperature_mean'])
-#fig.add_scatter(x=forecast['ds'], y=forecast['yhat_lower'], name='yhat_lower')
-#fig.add_scatter(x=forecast['ds'], y=forecast['yhat_upper'], name='yhat_upper')
-
+# Inizializazione delle variabili di stato
+if 'selected_df' not in st.session_state:
+    st.session_state['selected_df'] = df.copy()
+if 'selected_df_target' not in st.session_state:
+    st.session_state['selected_df_target'] = df_target.copy()
 
 #df.index = df.index.date
 df[data_url] = df[data_url].dt.date     # Cancella le ore dalla colonna "Date"
 
-df['isActive'] = [False] * len(df)
-df_target['isActive'] = [False] * len(df_target)
-
 left_column, right_column = st.columns(2)
 left_check = left_column.checkbox("Dataset without target")
 right_check = right_column.checkbox("Dataset with target")
-
-right_selected_rows = []
-selected_df_target = df_target.copy()
 
 # Visualizza i grafici quando vengono selezionati i checkbox
 if left_check:
@@ -72,13 +64,23 @@ if left_check:
     #left_chart=px.line(df,x='time',y=['relativehumidity_mean','temperature_mean'])
     #left_column.plotly_chart(left_chart, use_container_width=True)
     left_chart = go.Figure()
-    left_chart.add_trace(go.Scatter(x=df['time'], y=df['relativehumidity_mean'],
+    left_chart.add_trace(go.Scatter(x=df[data_url], y=df['relativehumidity_mean'],
                     mode='lines',
                     name='humidity'))
-    left_chart.add_trace(go.Scatter(x=df['time'], y=df['temperature_mean'],
+    left_chart.add_trace(go.Scatter(x=df[data_url], y=df['temperature_mean'],
                     mode='lines',
                     name='temperature'))
-    
+    for row_index, row in st.session_state.selected_df.iterrows():
+        if row['selected']:
+            selected_sample = df.iloc[row_index]
+            left_chart.add_trace(go.Scatter(x=[selected_sample[data_url]], y=[selected_sample['temperature_mean']],
+                            mode='markers',
+                            showlegend=False,
+                            marker=dict(color='yellow', size=7)))
+            left_chart.add_trace(go.Scatter(x=[selected_sample[data_url]], y=[selected_sample['relativehumidity_mean']],
+                            mode='markers',
+                            showlegend=False,
+                            marker=dict(color='yellow', size=7)))
     left_column.plotly_chart(left_chart, use_container_width=True)
 
 if right_check:
@@ -88,14 +90,13 @@ if right_check:
     #right_column.plotly_chart(right_chart)
     filtered_df = df_target[df_target['no. of Adult males'] != 0]
     right_chart = go.Figure()
-    
-    right_chart.add_trace(go.Scatter(x=df_target['Date'], y=df_target['relativehumidity_mean'],
+    right_chart.add_trace(go.Scatter(x=df_target[data_url_target], y=df_target['relativehumidity_mean'],
                     mode='lines',
                     name='humidity'))
-    right_chart.add_trace(go.Scatter(x=df_target['Date'], y=df_target['temperature_mean'],
+    right_chart.add_trace(go.Scatter(x=df_target[data_url_target], y=df_target['temperature_mean'],
                     mode='lines',
                     name='temperature'))
-    right_chart.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df['no. of Adult males'],
+    right_chart.add_trace(go.Scatter(x=filtered_df[data_url_target], y=filtered_df['no. of Adult males'],
                     mode='markers',
                     name='no. parasites',
                     marker=dict(
@@ -104,43 +105,40 @@ if right_check:
                         sizeref=0.1,  # Adjust the size reference as needed
                     ),
                     ))
-    for row_index, row in selected_df_target.iterrows():
-        if row['isActive']:
-            print('ci sono')
+    for row_index, row in st.session_state.selected_df_target.iterrows():
+        if row['selected']:
             selected_sample_right = df_target.iloc[row_index]
-
-            right_chart.add_trace(go.Scatter(x=[selected_sample_right['Date']], y=[selected_sample_right['temperature_mean']],
+            right_chart.add_trace(go.Scatter(x=[selected_sample_right[data_url_target]], y=[selected_sample_right['temperature_mean']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
-            right_chart.add_trace(go.Scatter(x=[selected_sample_right['Date']], y=[selected_sample_right['relativehumidity_mean']],
+            right_chart.add_trace(go.Scatter(x=[selected_sample_right[data_url_target]], y=[selected_sample_right['relativehumidity_mean']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
             if selected_sample_right['no. of Adult males'] > 0:
-                right_chart.add_trace(go.Scatter(x=[selected_sample_right['Date']], y=[selected_sample_right['no. of Adult males']],
+                right_chart.add_trace(go.Scatter(x=[selected_sample_right[data_url_target]], y=[selected_sample_right['no. of Adult males']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
-
     right_column.plotly_chart(right_chart, use_container_width=True)
 
+# Definizione della callback di aggiornamento della variabile di stato
+def update(df,key):
+    for elem in st.session_state[key]['edited_rows']:
+        st.session_state[df]['selected'][elem] = st.session_state[key]['edited_rows'][elem]['selected']
 
-'''
-for index, row in df.iterrows():
-    df.at[index, 'isActive'] = st.checkbox(f"Attiva riga {index + 1}", df.at[index, 'isActive'])
-    '''
 left_column.subheader("Dataframe: Dataset without target")
-selected_df = left_column.data_editor(df, hide_index=True)
+left_column.data_editor(df, key="left_editor", 
+                        disabled=['time', 'temperature_mean', 'relativehumidity_mean'], 
+                        hide_index=True, on_change=update, args=('selected_df','left_editor'))
 right_column.subheader("Dataframe: Dataset with target")
-selected_df_target = right_column.data_editor(df_target, hide_index=True)
-
-
-for index, row in selected_df_target.iterrows():
-    #print(row)
-    if row['isActive']:
-        print('ciao')
-        right_selected_rows.append(index)
+right_column.data_editor(df_target, key="right_editor", 
+                        disabled=['Date', 'no. of Adult males', 'temperature_mean', 'relativehumidity_mean'], 
+                        hide_index=True, on_change=update, args=('selected_df_target','right_editor'))
+      
+      
+st.sidebar.subheader('Ticker query parameters')  
 
 '''
 mappa_mesi = {
@@ -168,25 +166,6 @@ data_oggetto = datetime.strptime(data_string, "%b")
 
 # Stampa dell'oggetto di data
 print(data_oggetto)
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-st.sidebar.subheader('Ticker query parameters')
-
-
-
-
 
 
 '''
