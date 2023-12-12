@@ -1,50 +1,27 @@
-## ESERCITAZIONE ##
-# Accediamo alla record github e prendiamo il dataset per i dati del covid della protezione civile
-# Noi siamo interessati al csv: 
-#   https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-regioni/dpc-covid19-ita-regioni.csv
-# Bisogna fare una dashboar:
-#   Togliere tutte le colonne che presentavano almeno un valore mancante 
-#   Si conserva solo la data senza ora
-#   Come filtri Abbiamo regioni (da estrapolare direttamente da py - prendere tutti i valori unici)
-#   nella barra laterare start_date - end_date
-#   Fare due colonne in cui mettiamo:
-#       positivi per regione 
-#       ospedale per regioni
-#   Fare grafici in cui ho tante line quante sono le regioni (variabile color)
-#   Animazione dell'andamento del covid in varie regioni dle covid
 
 # Library import
 import streamlit as st
 import pandas as pd
 import numpy as np
+from datetime import datetime
 #import plotly.express as px
 #from prophet import Prophet
 
 # Page configuration
 st.set_page_config(
     page_title='Parasites DashBoard',
-    page_icon=':🦗:'
+    page_icon=':🦗:',
+    layout='wide',
+    initial_sidebar_state='expanded'  # Espandi la barra laterale inizialmente, se desiderato
     )
 st.title('Environmental Dashboard: Male Parasites Under the Lens 🍃🪳')
 
 # Data Source 
-url = '../Dataset_ISBI.csv'
-url_target = '../Dataset_ISBI_Target.csv'
+url = 'https://raw.githubusercontent.com/Dad-cip/Information-System-e-Business-Intelligent/main/Dataset_ISBI.csv'
+url_target = 'https://raw.githubusercontent.com/Dad-cip/Information-System-e-Business-Intelligent/main/Dataset_ISBI_Target.csv'
 
 data_url = 'time'
 data_url_target = 'Date'
-
-left_column, right_column = st.columns(2)
-left_check = left_column.checkbox("Dataset without target")
-right_check = right_column.checkbox("Dataset with target")
-if (left_check):
-    left_column.write("5")
-if(right_check):
-    right_column.write("42")
-
-
-
-
 
 # Data
 def _lower(string):
@@ -52,10 +29,11 @@ def _lower(string):
 
 @st.cache_data
 def load_data(url, data):
-    df = pd.read_csv(url, parse_dates=[data]) 
-    df.rename(_lower, axis="columns", inplace=True)
-    df.fillna(method='ffill', inplace=True)    # Sostituisci i valori mancanti con il valore precedente nella colonna
-    #df[data] = df[data].dt.date  # Cancello le ore
+#    df = pd.read_csv(url, sep=';', parse_dates=[data], index_col=data)
+    df = pd.read_csv(url, sep=';', parse_dates=[data])
+    #df.rename(_lower, axis="columns", inplace=True)
+    df.fillna(method='ffill', inplace=True)
+    #df[data] = df.index.date     # Cancella le ore dalla colonna "Date"
     return df
 
 df = load_data(url, data_url)
@@ -64,11 +42,69 @@ df_target = load_data(url_target, data_url_target)
 
 
 
+mappa_mesi = {
+    'gen': 'Jan',
+    'feb': 'Feb',
+    'mar': 'Mar',
+    'apr': 'Apr',
+    'mag': 'May',
+    'giu': 'Jun',
+    'lug': 'Jul',
+    'ago': 'Aug',
+    'set': 'Sep',
+    'ott': 'Oct',
+    'nov': 'Nov',
+    'dic': 'Dec'
+}
+
+data_string = df_target[data_url_target][1]
+
+for ita, eng in mappa_mesi.items():
+    data_string = data_string.replace(ita, eng)
+
+# Conversione in oggetto di data
+data_oggetto = datetime.strptime(data_string, "%b")
+
+# Stampa dell'oggetto di data
+print(data_oggetto)
+
+
+
+
+
+left_column, right_column = st.columns(2)
+left_check = left_column.checkbox("Dataset without target")
+right_check = right_column.checkbox("Dataset with target")
+
+# Visualizza i grafici quando vengono selezionati i checkbox
+if left_check:
+    left_column.subheader("Temperature and Humidity Trend")
+    left_column.line_chart(df.reset_index(), x='time', y='temperature_mean', width=1200, height=400, color='#ff0000')
+    #left_column.line_chart(df[['time', 'temperature_mean', 'relativehumidity_mean']], x=df.index, y=['temperature_mean', 'relativehumidity_mean'])
+
+if right_check:
+    right_column.subheader("Temperature and Humidity Trend")
+    right_column.line_chart(df_target.reset_index(), x='date', y='temperature_mean', width=1200, height=400, color='#ff0000')
+    
+
+#df.index = df.index.date
+df[data_url] = df[data_url].dt.date     # Cancella le ore dalla colonna "Date"
+
+left_column.subheader("Dataframe: Dataset without target")
+left_column.write(df)
+right_column.subheader("Dataframe: Dataset with target")
+right_column.write(df_target)
+
+
+st.sidebar.subheader('Ticker query parameters')
+
+
+
+
 
 
 '''
 
-st.sidebar.subheader('Ticker query parameters')
 # Ticker sidebar
 with open('ticker_symbols.txt', 'r') as fp:
     ticker_list = fp.read().split('\n')
