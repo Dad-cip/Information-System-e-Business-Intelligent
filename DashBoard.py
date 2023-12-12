@@ -4,6 +4,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import plotly.express as px
+import plotly.graph_objects as go
 #import plotly.express as px
 #from prophet import Prophet
 
@@ -34,14 +36,113 @@ def load_data(url, data):
     #df.rename(_lower, axis="columns", inplace=True)
     df.fillna(method='ffill', inplace=True)
     #df[data] = df.index.date     # Cancella le ore dalla colonna "Date"
+    df['temperature_mean'] = df['temperature_mean'].str.replace(',', '.').astype(float)
     return df
 
 df = load_data(url, data_url)
 df_target = load_data(url_target, data_url_target)
 
+#df_target['temperature_mean'] = df_target['temperature_mean'].str.replace(',', '.').astype(float)
 
 
+#fig = px.scatter(x=df_target['Date'], y=df_target['relativehumidity_mean'])
+#fig.add_scatter(x=df_target['Date'], y=df_target['temperature_mean'])
+#fig.add_scatter(x=forecast['ds'], y=forecast['yhat_lower'], name='yhat_lower')
+#fig.add_scatter(x=forecast['ds'], y=forecast['yhat_upper'], name='yhat_upper')
 
+
+#df.index = df.index.date
+df[data_url] = df[data_url].dt.date     # Cancella le ore dalla colonna "Date"
+
+df['isActive'] = [False] * len(df)
+df_target['isActive'] = [False] * len(df_target)
+
+left_column, right_column = st.columns(2)
+left_check = left_column.checkbox("Dataset without target")
+right_check = right_column.checkbox("Dataset with target")
+
+right_selected_rows = []
+selected_df_target = df_target.copy()
+
+# Visualizza i grafici quando vengono selezionati i checkbox
+if left_check:
+    left_column.subheader("Temperature and Humidity Trend")
+    #left_column.line_chart(df.reset_index(), x='time', y='temperature_mean', width=1200, height=400, color='#ff0000')
+    #left_column.line_chart(df[['time', 'temperature_mean', 'relativehumidity_mean']], x='time', y=['temperature_mean', 'relativehumidity_mean'])
+    #left_chart=px.line(df,x='time',y=['relativehumidity_mean','temperature_mean'])
+    #left_column.plotly_chart(left_chart, use_container_width=True)
+    left_chart = go.Figure()
+    left_chart.add_trace(go.Scatter(x=df['time'], y=df['relativehumidity_mean'],
+                    mode='lines',
+                    name='humidity'))
+    left_chart.add_trace(go.Scatter(x=df['time'], y=df['temperature_mean'],
+                    mode='lines',
+                    name='temperature'))
+    
+    left_column.plotly_chart(left_chart, use_container_width=True)
+
+if right_check:
+    right_column.subheader("Temperature and Humidity Trend")
+    #right_column.line_chart(df_target.reset_index(), x='Date', y='temperature_mean', width=1200, height=400, color='#ff0000')
+    #right_chart=px.line(df_target,x='Date',y=['relativehumidity_mean','temperature_mean'])
+    #right_column.plotly_chart(right_chart)
+    filtered_df = df_target[df_target['no. of Adult males'] != 0]
+    right_chart = go.Figure()
+    
+    right_chart.add_trace(go.Scatter(x=df_target['Date'], y=df_target['relativehumidity_mean'],
+                    mode='lines',
+                    name='humidity'))
+    right_chart.add_trace(go.Scatter(x=df_target['Date'], y=df_target['temperature_mean'],
+                    mode='lines',
+                    name='temperature'))
+    right_chart.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df['no. of Adult males'],
+                    mode='markers',
+                    name='no. parasites',
+                    marker=dict(
+                        size=filtered_df['no. of Adult males'],  # Marker size based on the column values
+                        sizemode='area',  # Options: 'diameter', 'area'
+                        sizeref=0.1,  # Adjust the size reference as needed
+                    ),
+                    ))
+    for row_index, row in selected_df_target.iterrows():
+        if row['isActive']:
+            print('ci sono')
+            selected_sample_right = df_target.iloc[row_index]
+
+            right_chart.add_trace(go.Scatter(x=[selected_sample_right['Date']], y=[selected_sample_right['temperature_mean']],
+                            mode='markers',
+                            showlegend=False,
+                            marker=dict(color='yellow', size=7)))
+            right_chart.add_trace(go.Scatter(x=[selected_sample_right['Date']], y=[selected_sample_right['relativehumidity_mean']],
+                            mode='markers',
+                            showlegend=False,
+                            marker=dict(color='yellow', size=7)))
+            if selected_sample_right['no. of Adult males'] > 0:
+                right_chart.add_trace(go.Scatter(x=[selected_sample_right['Date']], y=[selected_sample_right['no. of Adult males']],
+                            mode='markers',
+                            showlegend=False,
+                            marker=dict(color='yellow', size=7)))
+
+    right_column.plotly_chart(right_chart, use_container_width=True)
+
+
+'''
+for index, row in df.iterrows():
+    df.at[index, 'isActive'] = st.checkbox(f"Attiva riga {index + 1}", df.at[index, 'isActive'])
+    '''
+left_column.subheader("Dataframe: Dataset without target")
+selected_df = left_column.data_editor(df, hide_index=True)
+right_column.subheader("Dataframe: Dataset with target")
+selected_df_target = right_column.data_editor(df_target, hide_index=True)
+
+
+for index, row in selected_df_target.iterrows():
+    #print(row)
+    if row['isActive']:
+        print('ciao')
+        right_selected_rows.append(index)
+
+'''
 mappa_mesi = {
     'gen': 'Jan',
     'feb': 'Feb',
@@ -72,28 +173,13 @@ print(data_oggetto)
 
 
 
-left_column, right_column = st.columns(2)
-left_check = left_column.checkbox("Dataset without target")
-right_check = right_column.checkbox("Dataset with target")
 
-# Visualizza i grafici quando vengono selezionati i checkbox
-if left_check:
-    left_column.subheader("Temperature and Humidity Trend")
-    left_column.line_chart(df.reset_index(), x='time', y='temperature_mean', width=1200, height=400, color='#ff0000')
-    #left_column.line_chart(df[['time', 'temperature_mean', 'relativehumidity_mean']], x=df.index, y=['temperature_mean', 'relativehumidity_mean'])
 
-if right_check:
-    right_column.subheader("Temperature and Humidity Trend")
-    right_column.line_chart(df_target.reset_index(), x='date', y='temperature_mean', width=1200, height=400, color='#ff0000')
+
     
 
-#df.index = df.index.date
-df[data_url] = df[data_url].dt.date     # Cancella le ore dalla colonna "Date"
 
-left_column.subheader("Dataframe: Dataset without target")
-left_column.write(df)
-right_column.subheader("Dataframe: Dataset with target")
-right_column.write(df_target)
+
 
 
 st.sidebar.subheader('Ticker query parameters')
@@ -104,7 +190,7 @@ st.sidebar.subheader('Ticker query parameters')
 
 
 '''
-
+'''
 # Ticker sidebar
 with open('ticker_symbols.txt', 'r') as fp:
     ticker_list = fp.read().split('\n')
