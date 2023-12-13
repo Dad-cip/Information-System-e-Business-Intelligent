@@ -3,6 +3,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
@@ -136,39 +138,182 @@ right_column.subheader("Dataframe: Dataset with target")
 right_column.data_editor(df_target, key="right_editor", 
                         disabled=['Date', 'no. of Adult males', 'temperature_mean', 'relativehumidity_mean'], 
                         hide_index=True, on_change=update, args=('selected_df_target','right_editor'))
-      
-      
-st.sidebar.subheader('Ticker query parameters')  
+
+
+
+
+
+
+
+# Studiamo la CORRELAZIONE dei dati 
+left_column.markdown("<h1 style='text-align: center;'>Correlazione <span style='font-size: 28px;'>without target</span></h1>", unsafe_allow_html=True)
+
+df_no_date = df.drop(columns=data_url)
+
+left_left_column, left_right_column = left_column.columns(2)
+
+selected_x = left_left_column.selectbox("Seleziona colonna per l'asse x", df_no_date.columns)
+selected_y = left_right_column.selectbox("Seleziona colonna per l'asse y", df_no_date.columns)
+
+corr = df[selected_x].corr(df[selected_y])
+# Crea un grafico di dispersione con seaborn
+correlazione = plt.figure(figsize=(8, 6))
+sns.regplot(x=selected_x, y=selected_y, data=df, scatter_kws={'s': 100})
+plt.xlabel(selected_x)
+plt.ylabel(selected_y)
+plt.text(df[selected_x].min(), df[selected_y].max(), f'Correlation: {corr:.2f}', ha='left', va='bottom')
+plt.grid(True)
+plt.show()
+left_column.pyplot(correlazione)
+
+
+
+corr_target = df_target['temperature_mean'].corr(df_target['relativehumidity_mean'])
+# Crea un grafico di dispersione con seaborn
+'''
+correlazione = plt.figure(figsize=(8, 6))
+sns.regplot(x='temperature_mean', y='relativehumidity_mean', data=df, scatter_kws={'s': 100})
+plt.title('Scatter Plot tra Temperatura Media e Umidità Relativa Media')
+plt.xlabel('Temperatura Media')
+plt.ylabel('Umidità Relativa Media')
+plt.text(df['temperature_mean'].min(), df['relativehumidity_mean'].max(), f'Correlation: {correlation:.2f}', ha='left', va='bottom')
+plt.grid(True)
+plt.show()
+'''
+
+
+
+right_column.pyplot(correlazione)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## SIDEBAR ##      
+st.sidebar.title('Dataset without Target')  
+st.sidebar.subheader('Temporal Filter')
+
+# Definizione di variabili di stato per il filtro temporale
+start_date = st.sidebar.date_input("Start Date", df[data_url].min(), df[data_url].min(), df[data_url].max())
+end_date = st.sidebar.date_input("End Date", df[data_url].max(), df[data_url].min(), df[data_url].max())
+
+# Filtrare i dati in base alle date selezionate
+filtered_df = df[(df[data_url] >= start_date) & (df[data_url] <= end_date)]
+
+# Visualizzazione del grafico basato sulle date selezionate
+st.subheader('Temperature and Humidity Trend')
+filtered_chart = go.Figure()
+
+filtered_chart.add_trace(go.Scatter(x=filtered_df[data_url], y=filtered_df['relativehumidity_mean'],
+                    mode='lines',
+                    name='humidity'))
+filtered_chart.add_trace(go.Scatter(x=filtered_df[data_url], y=filtered_df['temperature_mean'],
+                    mode='lines',
+                    name='temperature'))
+
+st.plotly_chart(filtered_chart, use_container_width=True)
+#left_column.plotly_chart(left_chart, use_container_width=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+st.sidebar.title('Dataset with Target')  
+st.sidebar.subheader('Temporal Filter (df_target)')
 
 '''
-mappa_mesi = {
-    'gen': 'Jan',
-    'feb': 'Feb',
-    'mar': 'Mar',
-    'apr': 'Apr',
-    'mag': 'May',
-    'giu': 'Jun',
-    'lug': 'Jul',
-    'ago': 'Aug',
-    'set': 'Sep',
-    'ott': 'Oct',
-    'nov': 'Nov',
-    'dic': 'Dec'
+data_string = "15-giu"
+
+# Mappa dei nomi dei mesi abbreviati ai corrispondenti numeri del mese
+mesi_italiani = {
+    'gen': 1, 'feb': 2, 'mar': 3, 'apr': 4,
+    'mag': 5, 'giu': 6, 'lug': 7, 'ago': 8,
+    'set': 9, 'ott': 10, 'nov': 11, 'dic': 12
 }
 
-data_string = df_target[data_url_target][1]
+# Esempio di conversione
+giorno, mese_abbreviato = data_string.split('-')
+mese = mesi_italiani.get(mese_abbreviato.lower())
+anno = 2023  # Assumiamo un anno fisso, puoi regolarlo come necessario
 
-for ita, eng in mappa_mesi.items():
-    data_string = data_string.replace(ita, eng)
+# Converte la stringa in un oggetto datetime
+data = datetime(anno, mese, int(giorno))
 
-# Conversione in oggetto di data
-data_oggetto = datetime.strptime(data_string, "%b")
 
-# Stampa dell'oggetto di data
-print(data_oggetto)
+
+
+
+
+
+# Definizione di variabili di stato per il filtro temporale per df_target
+df_target['Date'] = pd.to_datetime(df_target[data_url_target])
+start_date_df_target = st.sidebar.date_input("Start Date (df_target)", df_target[data_url_target].min(), df_target[data_url_target].min(), df_target[data_url_target].max())
+end_date_df_target = st.sidebar.date_input("End Date (df_target)", df_target[data_url_target].max(), df_target[data_url_target].min(), df_target[data_url_target].max())
+
+# Conversione delle date per df_target
+start_date_df_target = start_date_df_target.strftime('%d-%b')
+end_date_df_target = end_date_df_target.strftime('%d-%b')
+
+# Filtrare i dati in base alle date selezionate per df_target
+filtered_df_target = df_target[(df_target['date'] >= start_date_df_target) & (df_target['date'] <= end_date_df_target)]
+
+# Visualizzazione del grafico basato sulle date selezionate per df_target
+st.subheader('Temperature and Humidity Trend (df_target)')
+filtered_chart_df_target = go.Figure()
+
+filtered_chart_df_target.add_trace(go.Scatter(x=filtered_df_target['date'], y=filtered_df_target['relativehumidity_mean'],
+                    mode='lines',
+                    name='humidity'))
+filtered_chart_df_target.add_trace(go.Scatter(x=filtered_df_target['date'], y=filtered_df_target['temperature_mean'],
+                    mode='lines',
+                    name='temperature'))
+
+# Aggiungi qui eventuali ulteriori tracce o personalizzazioni del grafico per df_target
+
+st.plotly_chart(filtered_chart_df_target, use_container_width=True)
 
 
 '''
+
+
+
+
+
+
+
+
 '''
 # Ticker sidebar
 with open('ticker_symbols.txt', 'r') as fp:
