@@ -37,7 +37,6 @@ def load_data(url, data):
     df = pd.read_csv(url, sep=';', parse_dates=[data])
     #df.rename(_lower, axis="columns", inplace=True)
     df.fillna(method='ffill', inplace=True)
-    #df[data] = df.index.date     # Cancella le ore dalla colonna "Date"
     df['temperature_mean'] = df['temperature_mean'].str.replace(',', '.').astype(float)
     df['selected'] = [False] * len(df)      # Aggiunge una colonna che permette di selezionare una riga
     return df
@@ -45,14 +44,66 @@ def load_data(url, data):
 df = load_data(url, data_url)
 df_target = load_data(url_target, data_url_target)
 
+# Aggiustiamo la colonna relativa alla data del dataframe senza target
+df[data_url] = df[data_url].dt.date     # Cancella le ore dalla colonna "Date"
+
+# Aggiustiamo la colonna relativa alla data del dataframe con target
+mappa_mesi = {
+    'gen': 'Jan-2023',
+    'feb': 'Feb-2023',
+    'mar': 'Mar-2023',
+    'apr': 'Apr-2023',
+    'mag': 'May-2023',
+    'giu': 'Jun-2023',
+    'lug': 'Jul-2023',
+    'ago': 'Aug-2023',
+    'set': 'Sep-2023',
+    'ott': 'Oct-2023',
+    'nov': 'Nov-2023',
+    'dic': 'Dec-2023'
+}
+for ita, eng in mappa_mesi.items():
+    for i in range(len(df_target[data_url_target])):
+        new_value = df_target.iloc[i, df_target.columns.get_loc(data_url_target)].replace(ita, eng)
+        df_target.iloc[i, df_target.columns.get_loc(data_url_target)] = new_value
+df_target[data_url_target] = [datetime.strptime(data_string, '%d-%b-%Y') for data_string in df_target[data_url_target]]
+df_target[data_url_target] = df_target[data_url_target].dt.date
+
+
 # Inizializazione delle variabili di stato
 if 'selected_df' not in st.session_state:
     st.session_state['selected_df'] = df.copy()
 if 'selected_df_target' not in st.session_state:
     st.session_state['selected_df_target'] = df_target.copy()
+if 'temp_filtered_df' not in st.session_state:
+    st.session_state['temp_filtered_df'] = df.copy()
+if 'temp_filtered_df_target' not in st.session_state:
+    st.session_state['temp_filtered_df_target'] = df_target.copy()
 
-#df.index = df.index.date
-df[data_url] = df[data_url].dt.date     # Cancella le ore dalla colonna "Date"
+
+## SIDEBAR ##      
+st.sidebar.title('Dataset without Target')  
+st.sidebar.subheader('Temporal Filter')
+
+# Definizione di variabili di stato per il filtro temporale
+start_date = st.sidebar.date_input("Start Date", df[data_url].min(), df[data_url].min(), df[data_url].max())
+end_date = st.sidebar.date_input("End Date", df[data_url].max(), df[data_url].min(), df[data_url].max())
+
+# Filtrare i dati in base alle date selezionate
+temp_filtered_df = st.session_state.selected_df[(df[data_url] >= start_date) & (df[data_url] <= end_date)]
+st.session_state.temp_filtered_df = temp_filtered_df
+
+
+st.sidebar.title('Dataset with Target')  
+st.sidebar.subheader('Temporal Filter (df_target)')
+
+# Definizione di variabili di stato per il filtro temporale
+start_date_target = st.sidebar.date_input("Start Date", df_target[data_url_target].min(), df_target[data_url_target].min(), df_target[data_url_target].max())
+end_date_target = st.sidebar.date_input("End Date", df_target[data_url_target].max(), df_target[data_url_target].min(), df_target[data_url_target].max())
+
+# Filtrare i dati in base alle date selezionate
+temp_filtered_df_target = st.session_state.selected_df_target[(df_target[data_url_target] >= start_date_target) & (df_target[data_url_target] <= end_date_target)]
+st.session_state.temp_filtered_df_target = temp_filtered_df_target
 
 left_column, right_column = st.columns(2)
 left_check = left_column.checkbox("Dataset without target")
@@ -61,19 +112,15 @@ right_check = right_column.checkbox("Dataset with target")
 # Visualizza i grafici quando vengono selezionati i checkbox
 if left_check:
     left_column.subheader("Temperature and Humidity Trend")
-    #left_column.line_chart(df.reset_index(), x='time', y='temperature_mean', width=1200, height=400, color='#ff0000')
-    #left_column.line_chart(df[['time', 'temperature_mean', 'relativehumidity_mean']], x='time', y=['temperature_mean', 'relativehumidity_mean'])
-    #left_chart=px.line(df,x='time',y=['relativehumidity_mean','temperature_mean'])
-    #left_column.plotly_chart(left_chart, use_container_width=True)
     left_chart = go.Figure()
-    left_chart.add_trace(go.Scatter(x=df[data_url], y=df['relativehumidity_mean'],
+    left_chart.add_trace(go.Scatter(x=temp_filtered_df[data_url], y=temp_filtered_df['relativehumidity_mean'],
                     mode='lines',
                     name='humidity'))
-    left_chart.add_trace(go.Scatter(x=df[data_url], y=df['temperature_mean'],
+    left_chart.add_trace(go.Scatter(x=temp_filtered_df[data_url], y=temp_filtered_df['temperature_mean'],
                     mode='lines',
                     name='temperature'))
     for row_index, row in st.session_state.selected_df.iterrows():
-        if row['selected']:
+        if row['selected'] and (row_index in st.session_state.temp_filtered_df.index):
             selected_sample = df.iloc[row_index]
             left_chart.add_trace(go.Scatter(x=[selected_sample[data_url]], y=[selected_sample['temperature_mean']],
                             mode='markers',
@@ -87,28 +134,25 @@ if left_check:
 
 if right_check:
     right_column.subheader("Temperature and Humidity Trend")
-    #right_column.line_chart(df_target.reset_index(), x='Date', y='temperature_mean', width=1200, height=400, color='#ff0000')
-    #right_chart=px.line(df_target,x='Date',y=['relativehumidity_mean','temperature_mean'])
-    #right_column.plotly_chart(right_chart)
-    filtered_df = df_target[df_target['no. of Adult males'] != 0]
+    no_zero_df = temp_filtered_df_target[temp_filtered_df_target['no. of Adult males'] != 0]
     right_chart = go.Figure()
-    right_chart.add_trace(go.Scatter(x=df_target[data_url_target], y=df_target['relativehumidity_mean'],
+    right_chart.add_trace(go.Scatter(x=temp_filtered_df_target[data_url_target], y=temp_filtered_df_target['relativehumidity_mean'],
                     mode='lines',
                     name='humidity'))
-    right_chart.add_trace(go.Scatter(x=df_target[data_url_target], y=df_target['temperature_mean'],
+    right_chart.add_trace(go.Scatter(x=temp_filtered_df_target[data_url_target], y=temp_filtered_df_target['temperature_mean'],
                     mode='lines',
                     name='temperature'))
-    right_chart.add_trace(go.Scatter(x=filtered_df[data_url_target], y=filtered_df['no. of Adult males'],
+    right_chart.add_trace(go.Scatter(x=no_zero_df[data_url_target], y=no_zero_df['no. of Adult males'],
                     mode='markers',
                     name='no. parasites',
                     marker=dict(
-                        size=filtered_df['no. of Adult males'],  # Marker size based on the column values
+                        size=no_zero_df['no. of Adult males'],  # Marker size based on the column values
                         sizemode='area',  # Options: 'diameter', 'area'
                         sizeref=0.1,  # Adjust the size reference as needed
                     ),
                     ))
     for row_index, row in st.session_state.selected_df_target.iterrows():
-        if row['selected']:
+        if row['selected'] and (row_index in st.session_state.temp_filtered_df_target.index):
             selected_sample_right = df_target.iloc[row_index]
             right_chart.add_trace(go.Scatter(x=[selected_sample_right[data_url_target]], y=[selected_sample_right['temperature_mean']],
                             mode='markers',
@@ -132,21 +176,18 @@ def update(df,key):
 
 left_column.subheader("Dataframe: Dataset without target")
 left_column.data_editor(df, key="left_editor", 
+                        column_order=('selected', 'time', 'temperature_mean', 'relativehumidity_mean'),
                         disabled=['time', 'temperature_mean', 'relativehumidity_mean'], 
                         hide_index=True, on_change=update, args=('selected_df','left_editor'))
 right_column.subheader("Dataframe: Dataset with target")
 right_column.data_editor(df_target, key="right_editor", 
-                        disabled=['Date', 'no. of Adult males', 'temperature_mean', 'relativehumidity_mean'], 
-                        hide_index=True, on_change=update, args=('selected_df_target','right_editor'))
-
-
-
-
-
+                         column_order=('selected', 'Date', 'no. of Adult males', 'temperature_mean', 'relativehumidity_mean'),
+                         disabled=['Date', 'no. of Adult males', 'temperature_mean', 'relativehumidity_mean'], 
+                         hide_index=True, on_change=update, args=('selected_df_target','right_editor'))
 
 
 # Studiamo la CORRELAZIONE dei dati 
-left_column.markdown("<h1 style='text-align: center;'>Correlazione <span style='font-size: 28px;'>without target</span></h1>", unsafe_allow_html=True)
+left_column.markdown("<h1>Correlazione <span style='font-size: 28px;'>without target</span></h1>", unsafe_allow_html=True)
 
 df_no_date = df.drop(columns=data_url)
 
@@ -163,95 +204,32 @@ plt.xlabel(selected_x)
 plt.ylabel(selected_y)
 plt.text(df[selected_x].min(), df[selected_y].max(), f'Correlation: {corr:.2f}', ha='left', va='bottom')
 plt.grid(True)
-plt.show()
+#plt.show()
 left_column.pyplot(correlazione)
 
 
+right_column.markdown("<h1>Correlazione <span style='font-size: 28px;'>with target</span></h1>", unsafe_allow_html=True)
 
-corr_target = df_target['temperature_mean'].corr(df_target['relativehumidity_mean'])
+df_target_no_date = df_target.drop(columns=data_url_target)
+
+right_left_column, right_right_column = right_column.columns(2)
+
+selected_x = right_left_column.selectbox("Seleziona colonna per l'asse x", df_target_no_date.columns)
+selected_y = right_right_column.selectbox("Seleziona colonna per l'asse y", df_target_no_date.columns)
+
+corr_target = df_target[selected_x].corr(df_target[selected_y])
 # Crea un grafico di dispersione con seaborn
-'''
-correlazione = plt.figure(figsize=(8, 6))
-sns.regplot(x='temperature_mean', y='relativehumidity_mean', data=df, scatter_kws={'s': 100})
-plt.title('Scatter Plot tra Temperatura Media e Umidità Relativa Media')
-plt.xlabel('Temperatura Media')
-plt.ylabel('Umidità Relativa Media')
-plt.text(df['temperature_mean'].min(), df['relativehumidity_mean'].max(), f'Correlation: {correlation:.2f}', ha='left', va='bottom')
+correlazione_target = plt.figure(figsize=(8, 6))
+sns.regplot(x=selected_x, y=selected_y, data=df_target, scatter_kws={'s': 100})
+plt.xlabel(selected_x)
+plt.ylabel(selected_y)
+plt.text(df_target[selected_x].min(), df_target[selected_y].max(), f'Correlation: {corr_target:.2f}', ha='left', va='bottom')
 plt.grid(True)
-plt.show()
-'''
+#plt.show()
+right_column.pyplot(correlazione_target)
 
 
 
-right_column.pyplot(correlazione)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## SIDEBAR ##      
-st.sidebar.title('Dataset without Target')  
-st.sidebar.subheader('Temporal Filter')
-
-# Definizione di variabili di stato per il filtro temporale
-start_date = st.sidebar.date_input("Start Date", df[data_url].min(), df[data_url].min(), df[data_url].max())
-end_date = st.sidebar.date_input("End Date", df[data_url].max(), df[data_url].min(), df[data_url].max())
-
-# Filtrare i dati in base alle date selezionate
-filtered_df = df[(df[data_url] >= start_date) & (df[data_url] <= end_date)]
-
-# Visualizzazione del grafico basato sulle date selezionate
-st.subheader('Temperature and Humidity Trend')
-filtered_chart = go.Figure()
-
-filtered_chart.add_trace(go.Scatter(x=filtered_df[data_url], y=filtered_df['relativehumidity_mean'],
-                    mode='lines',
-                    name='humidity'))
-filtered_chart.add_trace(go.Scatter(x=filtered_df[data_url], y=filtered_df['temperature_mean'],
-                    mode='lines',
-                    name='temperature'))
-
-st.plotly_chart(filtered_chart, use_container_width=True)
-#left_column.plotly_chart(left_chart, use_container_width=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-st.sidebar.title('Dataset with Target')  
-st.sidebar.subheader('Temporal Filter (df_target)')
 
 '''
 data_string = "15-giu"
