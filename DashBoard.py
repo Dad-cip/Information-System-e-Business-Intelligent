@@ -1,8 +1,10 @@
 
-# Library import
+## LIBRARIES IMPORT ##
 from libraries import *
 
-# Page configuration
+
+
+## PAGE CONFIGURATION ##
 st.set_page_config(
     page_title='Parasites DashBoard',
     page_icon=':🦗:',
@@ -11,32 +13,28 @@ st.set_page_config(
     )
 st.title('Environmental Dashboard: Male Parasites Under the Lens 🍃🪳')
 
-# Data Source 
+
+
+## DATA SOURCE ## 
 url = 'https://raw.githubusercontent.com/Dad-cip/Information-System-e-Business-Intelligent/main/Dataset_ISBI.csv'
 url_target = 'https://raw.githubusercontent.com/Dad-cip/Information-System-e-Business-Intelligent/main/Dataset_ISBI_Target.csv'
 
-data_url = 'time'
-data_url_target = 'Date'
-
-# Data
-def _lower(string):
-    return str.lower(string)
+date_column = 'time'
+date_column_target = 'Date'
 
 @st.cache_data
-def load_data(url, data):
-#    df = pd.read_csv(url, sep=';', parse_dates=[data], index_col=data)
-    df = pd.read_csv(url, sep=';', parse_dates=[data])
-    #df.rename(_lower, axis="columns", inplace=True)
+def load_data(url, date_col):
+    df = pd.read_csv(url, sep=';', parse_dates=[date_col])
     df.fillna(method='ffill', inplace=True)
     df['temperature_mean'] = df['temperature_mean'].str.replace(',', '.').astype(float)
-    df['selected'] = [False] * len(df)      # Aggiunge una colonna che permette di selezionare una riga
+    df['selected'] = [False] * len(df)      
     return df
 
-df = load_data(url, data_url)
-df_target = load_data(url_target, data_url_target)
+df = load_data(url, date_column)
+df_target = load_data(url_target, date_column_target)
 
 # Aggiustiamo la colonna relativa alla data del dataframe senza target
-df[data_url] = df[data_url].dt.date     # Cancella le ore dalla colonna "Date"
+df[date_column] = df[date_column].dt.date     # Cancelliamo le ore dalla colonna "time"
 
 # Aggiustiamo la colonna relativa alla data del dataframe con target
 mappa_mesi = {
@@ -54,14 +52,15 @@ mappa_mesi = {
     'dic': 'Dec-2022'
 }
 for ita, eng in mappa_mesi.items():
-    for i in range(len(df_target[data_url_target])):
-        new_value = df_target.iloc[i, df_target.columns.get_loc(data_url_target)].replace(ita, eng)
-        df_target.iloc[i, df_target.columns.get_loc(data_url_target)] = new_value
-df_target[data_url_target] = [datetime.strptime(data_string, '%d-%b-%Y') for data_string in df_target[data_url_target]]
-df_target[data_url_target] = df_target[data_url_target].dt.date
+    for i in range(len(df_target[date_column_target])):
+        new_value = df_target.iloc[i, df_target.columns.get_loc(date_column_target)].replace(ita, eng)
+        df_target.iloc[i, df_target.columns.get_loc(date_column_target)] = new_value
+df_target[date_column_target] = [datetime.strptime(data_string, '%d-%b-%Y') for data_string in df_target[date_column_target]]
+df_target[date_column_target] = df_target[date_column_target].dt.date
 
 
-# Inizializazione delle variabili di stato
+
+## STATE VARIABLES INIZIALIZATION ##
 if 'selected_df' not in st.session_state:
     st.session_state['selected_df'] = df.copy()
 if 'selected_df_target' not in st.session_state:
@@ -72,92 +71,99 @@ if 'temp_filtered_df_target' not in st.session_state:
     st.session_state['temp_filtered_df_target'] = df_target.copy()
 
 
-## SIDEBAR ##      
+
+## SIDEBAR: TEMPORAL FILTERS ##      
 st.sidebar.title('Temporal Filter')  
 st.sidebar.subheader('Dataset without Target')
 
-# Definizione di variabili di stato per il filtro temporale
+# Divisione in due colonne della sidebar
 side_left_column, side_right_column = st.sidebar.columns(2)
 
-start_date = side_left_column.date_input("Start Date", df[data_url].min(), df[data_url].min(), df[data_url].max())
-end_date = side_right_column.date_input("End Date", df[data_url].max(), df[data_url].min(), df[data_url].max())
+# Definizione di variabili di stato per il filtro temporale
+start_date = side_left_column.date_input("Start Date", df[date_column].min(), df[date_column].min(), df[date_column].max())
+end_date = side_right_column.date_input("End Date", df[date_column].max(), df[date_column].min(), df[date_column].max())
 
-# Filtrare i dati in base alle date selezionate
-temp_filtered_df = st.session_state.selected_df[(df[data_url] >= start_date) & (df[data_url] <= end_date)]
+# Filtraggio dei dati in base alle date selezionate
+temp_filtered_df = st.session_state.selected_df[(df[date_column] >= start_date) & (df[date_column] <= end_date)]
 st.session_state.temp_filtered_df = temp_filtered_df
 
 
 st.sidebar.subheader('Dataset with target')
 
-# Definizione di variabili di stato per il filtro temporale
+# Divisione in due colonne della sidebar
 side_left_column, side_right_column = st.sidebar.columns(2)
 
-start_date_target = side_left_column.date_input("Start Date", df_target[data_url_target].min(), df_target[data_url_target].min(), df_target[data_url_target].max())
-end_date_target = side_right_column.date_input("End Date", df_target[data_url_target].max(), df_target[data_url_target].min(), df_target[data_url_target].max())
+# Definizione di variabili di stato per il filtro temporale
+start_date_target = side_left_column.date_input("Start Date", df_target[date_column_target].min(), df_target[date_column_target].min(), df_target[date_column_target].max())
+end_date_target = side_right_column.date_input("End Date", df_target[date_column_target].max(), df_target[date_column_target].min(), df_target[date_column_target].max())
 
-# Filtrare i dati in base alle date selezionate
-temp_filtered_df_target = st.session_state.selected_df_target[(df_target[data_url_target] >= start_date_target) & (df_target[data_url_target] <= end_date_target)]
+# Filtraggio dei dati in base alle date selezionate
+temp_filtered_df_target = st.session_state.selected_df_target[(df_target[date_column_target] >= start_date_target) & (df_target[date_column_target] <= end_date_target)]
 st.session_state.temp_filtered_df_target = temp_filtered_df_target
 
+
+
+## VISUALIZE DATASET PLOTS ##
 left_column, right_column = st.columns(2)
 left_check = left_column.checkbox("Dataset without target")
 right_check = right_column.checkbox("Dataset with target")
 
-# Visualizza i grafici quando vengono selezionati i checkbox
+# Visualizziamo il grafico del dataset senza target quando viene selezionata la checkbox
 if left_check:
     left_column.subheader("Temperature and Humidity Trend")
     left_chart = go.Figure()
-    left_chart.add_trace(go.Scatter(x=temp_filtered_df[data_url], y=temp_filtered_df['relativehumidity_mean'],
+    left_chart.add_trace(go.Scatter(x=temp_filtered_df[date_column], y=temp_filtered_df['relativehumidity_mean'],
                     mode='lines',
                     name='humidity'))
-    left_chart.add_trace(go.Scatter(x=temp_filtered_df[data_url], y=temp_filtered_df['temperature_mean'],
+    left_chart.add_trace(go.Scatter(x=temp_filtered_df[date_column], y=temp_filtered_df['temperature_mean'],
                     mode='lines',
                     name='temperature'))
     for row_index, row in st.session_state.selected_df.iterrows():
         if row['selected'] and (row_index in st.session_state.temp_filtered_df.index):
             selected_sample = df.iloc[row_index]
-            left_chart.add_trace(go.Scatter(x=[selected_sample[data_url]], y=[selected_sample['temperature_mean']],
+            left_chart.add_trace(go.Scatter(x=[selected_sample[date_column]], y=[selected_sample['temperature_mean']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
-            left_chart.add_trace(go.Scatter(x=[selected_sample[data_url]], y=[selected_sample['relativehumidity_mean']],
+            left_chart.add_trace(go.Scatter(x=[selected_sample[date_column]], y=[selected_sample['relativehumidity_mean']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
     left_column.plotly_chart(left_chart, use_container_width=True)
 
+# Visualizziamo il grafico del dataset con il target quando viene selezionata la checkbox
 if right_check:
-    right_column.subheader("Temperature and Humidity Trend")
+    right_column.subheader("Parasites, Temperature and Humidity Trend")
     no_zero_df = temp_filtered_df_target[temp_filtered_df_target['no. of Adult males'] != 0]
     right_chart = go.Figure()
-    right_chart.add_trace(go.Scatter(x=temp_filtered_df_target[data_url_target], y=temp_filtered_df_target['relativehumidity_mean'],
+    right_chart.add_trace(go.Scatter(x=temp_filtered_df_target[date_column_target], y=temp_filtered_df_target['relativehumidity_mean'],
                     mode='lines',
                     name='humidity'))
-    right_chart.add_trace(go.Scatter(x=temp_filtered_df_target[data_url_target], y=temp_filtered_df_target['temperature_mean'],
+    right_chart.add_trace(go.Scatter(x=temp_filtered_df_target[date_column_target], y=temp_filtered_df_target['temperature_mean'],
                     mode='lines',
                     name='temperature'))
-    right_chart.add_trace(go.Scatter(x=no_zero_df[data_url_target], y=no_zero_df['no. of Adult males'],
+    right_chart.add_trace(go.Scatter(x=no_zero_df[date_column_target], y=no_zero_df['no. of Adult males'],
                     mode='markers',
                     name='no. parasites',
                     marker=dict(
-                        size=no_zero_df['no. of Adult males'],  # Marker size based on the column values
-                        sizemode='area',  # Options: 'diameter', 'area'
-                        sizeref=0.1,  # Adjust the size reference as needed
+                        size=no_zero_df['no. of Adult males'],  
+                        sizemode='area',  
+                        sizeref=0.1,  
                     ),
                     ))
     for row_index, row in st.session_state.selected_df_target.iterrows():
         if row['selected'] and (row_index in st.session_state.temp_filtered_df_target.index):
             selected_sample_right = df_target.iloc[row_index]
-            right_chart.add_trace(go.Scatter(x=[selected_sample_right[data_url_target]], y=[selected_sample_right['temperature_mean']],
+            right_chart.add_trace(go.Scatter(x=[selected_sample_right[date_column_target]], y=[selected_sample_right['temperature_mean']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
-            right_chart.add_trace(go.Scatter(x=[selected_sample_right[data_url_target]], y=[selected_sample_right['relativehumidity_mean']],
+            right_chart.add_trace(go.Scatter(x=[selected_sample_right[date_column_target]], y=[selected_sample_right['relativehumidity_mean']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
             if selected_sample_right['no. of Adult males'] > 0:
-                right_chart.add_trace(go.Scatter(x=[selected_sample_right[data_url_target]], y=[selected_sample_right['no. of Adult males']],
+                right_chart.add_trace(go.Scatter(x=[selected_sample_right[date_column_target]], y=[selected_sample_right['no. of Adult males']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(color='yellow', size=7)))
@@ -168,11 +174,14 @@ def update(df,key):
     for elem in st.session_state[key]['edited_rows']:
         st.session_state[df]['selected'][elem] = st.session_state[key]['edited_rows'][elem]['selected']
 
+# Visualizzazione della tabella relativa al dataset senza target
 left_column.subheader("Dataframe: Dataset without target")
 left_column.data_editor(df, key="left_editor", 
                         column_order=('selected', 'time', 'temperature_mean', 'relativehumidity_mean'),
                         disabled=['time', 'temperature_mean', 'relativehumidity_mean'], 
                         hide_index=True, on_change=update, args=('selected_df','left_editor'))
+
+# Visualizzazione della tabella relativa al dataset con il target
 right_column.subheader("Dataframe: Dataset with target")
 right_column.data_editor(df_target, key="right_editor", 
                          column_order=('selected', 'Date', 'no. of Adult males', 'temperature_mean', 'relativehumidity_mean'),
@@ -180,71 +189,77 @@ right_column.data_editor(df_target, key="right_editor",
                          hide_index=True, on_change=update, args=('selected_df_target','right_editor'))
 
 
-# Studiamo la CORRELAZIONE dei dati 
+
+## DATA CORRELATION ## 
 left_column.markdown("<h1>Correlazione <span style='font-size: 28px;'>without target</span></h1>", unsafe_allow_html=True)
 
-df_no_date = df.drop(columns=data_url)
+df_reduced = df.drop(columns=[date_column,'selected'])
 
 left_left_column, left_right_column = left_column.columns(2)
-
-selected_x = left_left_column.selectbox("Seleziona colonna per l'asse x", df_no_date.columns)
-selected_y = left_right_column.selectbox("Seleziona colonna per l'asse y", df_no_date.columns)
+selected_x = left_left_column.selectbox("Seleziona colonna per l'asse x", df_reduced.columns)
+selected_y = left_right_column.selectbox("Seleziona colonna per l'asse y", df_reduced.columns)
 
 corr = df[selected_x].corr(df[selected_y])
-# Crea un grafico di dispersione con seaborn
-correlazione = plt.figure(figsize=(8, 6))
+corr_plot = plt.figure(figsize=(8, 6))
 sns.regplot(x=selected_x, y=selected_y, data=df, scatter_kws={'s': 100})
 plt.xlabel(selected_x)
 plt.ylabel(selected_y)
 plt.text(df[selected_x].min(), df[selected_y].max(), f'Correlation: {corr:.2f}', ha='left', va='bottom')
 plt.grid(True)
-#plt.show()
-left_column.pyplot(correlazione)
+left_column.pyplot(corr_plot)
 
 
 right_column.markdown("<h1>Correlazione <span style='font-size: 28px;'>with target</span></h1>", unsafe_allow_html=True)
 
-df_target_no_date = df_target.drop(columns=data_url_target)
+df_target_reduced = df_target.drop(columns=[date_column_target, 'selected'])
 
 right_left_column, right_right_column = right_column.columns(2)
+selected_x_target = right_left_column.selectbox("Seleziona colonna per l'asse x", df_target_reduced.columns)
+selected_y_target = right_right_column.selectbox("Seleziona colonna per l'asse y", df_target_reduced.columns)
 
-selected_x = right_left_column.selectbox("Seleziona colonna per l'asse x", df_target_no_date.columns)
-selected_y = right_right_column.selectbox("Seleziona colonna per l'asse y", df_target_no_date.columns)
-
-corr_target = df_target[selected_x].corr(df_target[selected_y])
-# Crea un grafico di dispersione con seaborn
-correlazione_target = plt.figure(figsize=(8, 6))
-sns.regplot(x=selected_x, y=selected_y, data=df_target, scatter_kws={'s': 100})
-plt.xlabel(selected_x)
-plt.ylabel(selected_y)
-plt.text(df_target[selected_x].min(), df_target[selected_y].max(), f'Correlation: {corr_target:.2f}', ha='left', va='bottom')
+corr_target = df_target[selected_x_target].corr(df_target[selected_y_target])
+corr_target_plot = plt.figure(figsize=(8, 6))
+sns.regplot(x=selected_x_target, y=selected_y_target, data=df_target, scatter_kws={'s': 100})
+plt.xlabel(selected_x_target)
+plt.ylabel(selected_y_target)
+plt.text(df_target[selected_x_target].min(), df_target[selected_y_target].max(), f'Correlation: {corr_target:.2f}', ha='left', va='bottom')
 plt.grid(True)
-right_column.pyplot(correlazione_target)
+right_column.pyplot(corr_target_plot)
 
 
+
+## DATASET TARGET AUTOCORRELATION ##
 st.markdown("<h1 style='text-align: center;'>INSPECTION DATASET TARGET</h1>", unsafe_allow_html=True)
 st.markdown("<h2 style='text-align: center;'>Autocorrelation</h2>", unsafe_allow_html=True)
 
-left_column, center_column, right_column = st.columns(3)
+# Definiamo il nome della colonna target
+target_column = 'no. of Adult males'
 
-# Slider LAGS
+left_column, center_column, right_column = st.columns(3)
 lags = center_column.slider(label="lags", min_value=1, max_value=52, step=1, value=20)
 
 left_column, right_column = st.columns(2)
 
 # Grafico ACF
-fig_acf = sgt.plot_acf(df_target['no. of Adult males'], lags=lags, zero=False, title="Autocorrelation of no. of Adult males")
+@st.cache_data
+def acf_plot(df, target_column, lags, title, zero=False):
+    return sgt.plot_acf(df[target_column], lags=lags, zero=zero, title=title)
+fig_acf = acf_plot(df_target, target_column, lags, title="Autocorrelation of no. of Adult males")
 left_column.pyplot(fig_acf)
 
 # Grafico PACF
-fig_pacf = sgt.plot_pacf(df_target['no. of Adult males'], lags=lags, zero=False, method='ols', title="PACF of no. of Adult males")
+@st.cache_data
+def pacf_plot(df, target_column, lags, title, zero=False, method='ols'):
+    return sgt.plot_pacf(df[target_column], lags=lags, zero=zero, method=method, title=title)
+fig_pacf = pacf_plot(df_target, target_column, lags, title="PACF of no. of Adult males")
 right_column.pyplot(fig_pacf)
 
 
-df_target['Date'] = pd.to_datetime(df_target['Date'], format='%d-%b')
-# Set year for the second dataframe as 2022
-df_target['Date'] = df_target['Date'].apply(lambda x: x.replace(year=2022))
-df_target.set_index('Date', inplace=True)
+
+## DATASET TARGET DIFFERENTIATION ##
+df_target[date_column_target] = pd.to_datetime(df_target[date_column_target], format='%d-%b')
+df_target[date_column_target] = df_target[date_column_target].apply(lambda x: x.replace(year=2022))
+df_target.set_index(date_column_target, inplace=True)
 df_target = df_target.drop(columns='selected')
 
 st.markdown("<h2 style='text-align: center;'>Differentiation</h2>", unsafe_allow_html=True)
@@ -256,25 +271,24 @@ diff_order = right_column.number_input("", min_value=1, max_value=10, value=1, s
 df_diff = df_target.diff(diff_order).dropna()
     
 fig, ax = plt.subplots(figsize=(12, 6)) 
-ax.plot(df_target.index, df_target['no. of Adult males']) 
+ax.plot(df_target.index, df_target[target_column]) 
 ax.set_title('Before Differentiation') 
-ax.set_xlabel('Date') 
-ax.set_ylabel('no. of Adult males') 
+ax.set_xlabel(date_column_target) 
+ax.set_ylabel(target_column) 
 ax.legend() 
 left_column.pyplot(fig)
 
 fig, ax = plt.subplots(figsize=(12, 6)) 
-ax.plot(df_diff.index, df_diff['no. of Adult males']) 
+ax.plot(df_diff.index, df_diff[target_column]) 
 ax.set_title('After Differentiation') 
-ax.set_xlabel('Date') 
-ax.set_ylabel('no. of Adult males') 
+ax.set_xlabel(date_column_target) 
+ax.set_ylabel(target_column) 
 ax.legend() 
 right_column.pyplot(fig)
 
 
 
-
-# SIDEBAR MODELS
+## SIDEBAR: MODEL SELECTION ##
 st.sidebar.header('Model List')
 
 with st.sidebar:
@@ -283,13 +297,17 @@ with st.sidebar:
     rt_check = st.checkbox("Regression Tree")
     nn_check = st.checkbox("Neural Network")
 
-    # Make splitting 80-10-10
-    train_size = int(len(df_diff)*0.8)
-    val_size = int(len(df_diff)*0.1)
-    df_diff_train = df_diff.iloc[:train_size+1]
-    df_diff_val = df_diff.iloc[train_size+1:train_size+val_size+1]
-    df_diff_test = df_diff.iloc[train_size+val_size+1:]
 
+
+## MODEL FITTING ##
+# Splittiamo il dataset differenziato (80-10-10)
+train_size = int(len(df_diff)*0.8)
+val_size = int(len(df_diff)*0.1)
+df_diff_train = df_diff.iloc[:train_size+1]
+df_diff_val = df_diff.iloc[train_size+1:train_size+val_size+1]
+df_diff_test = df_diff.iloc[train_size+val_size+1:]
+
+# Definiamo la funzione che crea il grafico delle differenze tra i valori di test reali e predetti
 @st.cache_data
 def plot_differencies(_x1,y1,_x2,y2):
     fig = plt.figure(figsize=(10, 4))
@@ -302,69 +320,51 @@ def plot_differencies(_x1,y1,_x2,y2):
     return fig
 
 
+# Addestriamo il modello VAR
 if var_check:
     st.markdown("<h2>VAR Model</h2>", unsafe_allow_html=True)
-    #VAR
-    #lags_var = st.form()
-    # Aggiungi una descrizione sopra la casella di input numerica
 
     left_column, right_column = st.columns(2)
     left_column.text("Enter the number of lags you want to fit:")
-    
-    # Chiedi all'utente di inserire un numero
     lags_var = left_column.number_input("", min_value=0, max_value=52, value=6, step=1, label_visibility='collapsed')
     
-    # Let's differentiate the series in order to make it stationary
-
-    # Create and fit model VAR on the new stationary series
-
-    model = VAR(df_diff_train)
-    results = model.fit(lags_var)
-
-    #st.text(results.summary())
-
-    results_fitted = results.fittedvalues.iloc[1:]
-
+    @st.cache_data
+    def var_model_fit(df_train, lags): 
+        model = VAR(df_train)
+        results = model.fit(lags)
+        return results
+    results_var = var_model_fit(df_diff_train, lags_var)
+    
+    results_fitted = results_var.fittedvalues.iloc[1:]
     # Compute RMSE (Root Mean Squared Error) e AIC (Akaike Information Criterion)
     min_length = min(len(df_diff_train), len(results_fitted))  # make shapes compatible
-    rmse_value = rmse_function(df_diff_train.iloc[:min_length], results_fitted.iloc[:min_length])
-    aic_value = aic(results.aic, len(df_diff_train.columns), df_modelwc=len(results.params))
-    left_column.markdown(f'**RMSE**: {rmse_value}')
-    left_column.markdown(f'**AIC**: {aic_value}')
+    rmse_var = rmse_function(df_diff_train.iloc[:min_length], results_fitted.iloc[:min_length])
+    aic_var = aic(results_var.aic, len(df_diff_train.columns), df_modelwc=len(results_var.params))
+    left_column.markdown(f'**RMSE**: {rmse_var}')
+    left_column.markdown(f'**AIC**: {aic_var}')
 
-    # Make predictions
-    lag_order = results.k_ar
-    forecast = results.forecast(df_diff_train.values[-lag_order:], steps=len(df_diff_test))
-    target_forecast = []
-    for i in range(len(df_diff_test)):
-        target_forecast.append(forecast[i,0])
-    
-    # Confronta le previsioni con i valori effettivi del test
-    comparison = pd.DataFrame({'Predicted': target_forecast, 'Actual': df_diff_test['no. of Adult males']})
-    
-    # Creazione di un grafico a dispersione per visualizzare i valori predetti rispetto a quelli effettivi
+    # Effettuiamo le predizioni sul test
+    lag_order = results_var.k_ar
+    forecast_var = results_var.forecast(df_diff_train.values[-lag_order:], steps=len(df_diff_test))
+    target_forecast_var = forecast_var[:, 0]    # estraiamo solo la colonna relativa al target
+    comparison_var = pd.DataFrame({'Predicted': target_forecast_var, 'Actual': df_diff_test['no. of Adult males']})
 
-    # Extract only the first column from the forecast
-    forecast_first_col = forecast[:, 0]
+    fig = plot_differencies(comparison_var.index, comparison_var['Actual'], comparison_var.index, comparison_var['Predicted'])
+    right_column.pyplot(fig)
     
-    # Plot actual vs predicted values for the first column
+    # Plottiamo l'andamento della serie reale e delle predizioni
     fig, ax = plt.subplots(figsize=(15, 4))
     ax.plot(df_diff_train.index, df_diff_train.iloc[:, 0], label='Training', marker='o')
     ax.plot(df_diff_val.index, df_diff_val.iloc[:, 0], label='Validation', marker='s')
-    ax.plot(df_diff_test.index, forecast_first_col, label='Predicted', linestyle='dashed', marker='o')
+    ax.plot(df_diff_test.index, target_forecast_var, label='Predicted', linestyle='dashed', marker='o')
     ax.set_title('Actual vs Predicted Values (First Column)')
     ax.set_xlabel('Date')
     ax.set_ylabel('Your Y-axis label for the first column')
     ax.legend()
     st.pyplot(fig)
-
-    fig = plot_differencies(comparison.index, comparison['Actual'], comparison.index, comparison['Predicted'])
-    right_column.pyplot(fig)
-
-    # Print predictions
-    #st.text(f'Predictions for next {df_diff_test} observations:\n{forecast}')
     
     
+# Addestriamo il modello ARIMAX
 if arimax_check:
     st.markdown("<h2>ARIMAX Model</h2>", unsafe_allow_html=True)
     
@@ -372,37 +372,38 @@ if arimax_check:
     left_column.text("Enter the order:")
     
     ll, cl, rl = left_column.columns(3)
-    AR_ord = ll.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='lr')
-    I_ord = cl.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='cr')
-    MA_ord = rl.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='rr')
+    AR_ord = ll.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='ll')
+    I_ord = cl.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='cl')
+    MA_ord = rl.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='rl')
+    selected_order = (AR_ord,I_ord,MA_ord)
     
-    select_order = (AR_ord,I_ord,MA_ord)
-    # Concatenate training e validation
+    # Concateniamo training e validation
     df_diff_train_val = pd.concat([df_diff_train, df_diff_val])
-    # Including multiple exogenous variables
+    
+    # Definiamo le variabili esogene per il training
     exog_vars = df_diff_train_val[['relativehumidity_mean','temperature_mean']]
 
-    model = ARIMA(df_diff_train_val['no. of Adult males'], exog = exog_vars, order=select_order)
-    results = model.fit()
+    @st.cache_data
+    def arimax_model_fit(df_train, target_column, exog_vars, order): 
+        model = ARIMA(df_train[target_column], exog = exog_vars, order=order)
+        results = model.fit()
+        return results
+    results_arimax = arimax_model_fit(df_diff_train_val, target_column, exog_vars, selected_order)    
     
+    # Effettuiamo le predizioni sul test
     start_date = df_diff_test.index[0]
     end_date = df_diff_test.index[-1]
-    forecast = results.predict(start = start_date, end = end_date, exog=df_diff_test[['relativehumidity_mean','temperature_mean']])
+    forecast_arimax = results_arimax.predict(start = start_date, end = end_date, exog=df_diff_test[['relativehumidity_mean','temperature_mean']])
+    comparison_arimax = pd.DataFrame({'Predicted': forecast_arimax, 'Actual': df_diff_test['no. of Adult males']})
 
-    # Confronta le previsioni con i valori effettivi del test
-    comparison = pd.DataFrame({'Predicted': forecast, 'Actual': df_diff_test['no. of Adult males']})
-
-    # Ora puoi analizzare la differenza tra i valori previsti e quelli effettivi
-    comparison['Difference'] = comparison['Actual'] - comparison['Predicted']
-
-    rmse = np.sqrt(mean_squared_error(comparison['Actual'], comparison['Predicted']))
-    mae = mean_absolute_error(comparison['Actual'], comparison['Predicted'])
-
-    left_column.markdown(f'**RMSE**: {rmse}')
-    left_column.markdown(f'**MAE**: {mae}')
+    rmse_arimax = np.sqrt(mean_squared_error(comparison_arimax['Actual'], comparison_arimax['Predicted']))
+    mae_arimax = mean_absolute_error(comparison_arimax['Actual'], comparison_arimax['Predicted'])
+    left_column.markdown(f'**RMSE**: {rmse_arimax}')
+    left_column.markdown(f'**MAE**: {mae_arimax}')
     
-    fig = plot_differencies(comparison.index, comparison['Actual'], comparison.index, comparison['Predicted'])
+    fig = plot_differencies(comparison_arimax.index, comparison_arimax['Actual'], comparison_arimax.index, comparison_arimax['Predicted'])
     right_column.pyplot(fig)
+    
     
 # Determine the number of optimal lags for each column
 @st.cache_data
@@ -438,9 +439,6 @@ def find_optimal_lags(dataframe, _columnnames, max_lags=20):
             optimal_lags[column] = max_lags
 
     return optimal_lags
-
-# Example usage:
-# Assuming 'df' is your DataFrame and you want to check the first three columns
 column_names = df_target.columns
 optimal_lags = find_optimal_lags(df_target, column_names)
 
@@ -475,22 +473,20 @@ def create_combined_dataset(dataframe, optimal_lags, target_column):
     # Remove rows with NaN values created by lagging
     combined_df.dropna(inplace=True)
     return combined_df
-
-target_column = 'no. of Adult males'
 combined_df = create_combined_dataset(df_target, optimal_lags, target_column)
-      
+
+# Addestriamo il modello Regression Tree      
 if rt_check:
     st.markdown("<h2>Regression Tree Model</h2>", unsafe_allow_html=True)
     left_column, right_column = st.columns(2)
     left_column.text("Enter max_depth, min_samples_split, min_samples_leaf:")
     
     ll, cl, rl = left_column.columns(3)
-    max_depth = ll.number_input("", min_value=1, max_value=10, value=1, step=1, label_visibility='collapsed', key='lr')
-    min_samples_split = cl.number_input("", min_value=2, max_value=10, value=2, step=1, label_visibility='collapsed', key='cr')
-    min_samples_leaf = rl.number_input("", min_value=1, max_value=10, value=1, step=1, label_visibility='collapsed', key='rr')
+    max_depth = ll.number_input("", min_value=1, max_value=10, value=1, step=1, label_visibility='collapsed', key='ll')
+    min_samples_split = cl.number_input("", min_value=2, max_value=10, value=2, step=1, label_visibility='collapsed', key='cl')
+    min_samples_leaf = rl.number_input("", min_value=1, max_value=10, value=1, step=1, label_visibility='collapsed', key='rl')
     
-    # Dividi i dati in set di addestramento e test
-    # Manual Split: 90-10
+    # Splittiamo il dataset in train e test (90-10)
     train_size = int(len(combined_df)*0.9)
     df_train = combined_df.iloc[:train_size]
     df_test = combined_df.iloc[train_size:]
@@ -499,19 +495,27 @@ if rt_check:
     X_test = df_test.drop(target_column, axis=1)
     y_test = df_test[target_column]
     
-    rt_model = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split)
-    rt_model.fit(X_train, y_train)
-    y_pred = rt_model.predict(X_test)
-
-    # Valuta le prestazioni del modello
-    mse = mean_squared_error(y_test, y_pred)
-    left_column.markdown(f'**Mean Squared Error**: {mse}')
+    @st.cache_data
+    def rt_model_fit(X_train, y_train, max_depth, min_samples_leaf, min_samples_split): 
+        model = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split)
+        model.fit(X_train, y_train)
+        return model
+    model_rt = rt_model_fit(X_train, y_train, max_depth=max_depth, min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split)
     
-    fig = plot_differencies(df_test.index, y_test, df_test.index, y_pred)
+    # Effettuiamo le predizioni sul test
+    y_pred_rt = model_rt.predict(X_test)
+
+    # Valutiamo le prestazioni del modello
+    mse_rt = mean_squared_error(y_test, y_pred_rt)
+    left_column.markdown(f'**Mean Squared Error**: {mse_rt}')
+    
+    fig = plot_differencies(df_test.index, y_test, df_test.index, y_pred_rt)
     right_column.pyplot(fig)
     
+    
+# Effettuiamo il pre-processing dei dati per l'addestramento della rete neurale    
 @st.cache_data    
-def preprocess_data(dataframe, target_column):
+def preprocess_data(dataframe, target_column, lr):
     """
     Preprocess the data for MLP training. Splits data, normalizes features, and creates an MLP model.
 
@@ -544,46 +548,55 @@ def preprocess_data(dataframe, target_column):
 
     # Define MLP model
     model = Sequential()
-    model.add(Dense(200, activation='relu', input_shape=(X_train_scaled.shape[1],)))
-    model.add(Dense(100, activation='relu'))
+    model.add(Dense(1000, activation='relu', input_shape=(X_train_scaled.shape[1],)))
+    #model.add(Dense(500, activation='relu'))
+    #model.add(Dense(1000, activation='relu'))
+    #model.add(Dense(1000, activation='relu'))
+    #model.add(Dense(1000, activation='relu'))
     model.add(Dense(1))  # Output layer
 
     # Compile the model
-    model.compile(optimizer='adam', loss='mean_squared_error')
+    model.compile(optimizer=Adam(learning_rate=lr), loss='mean_squared_error')
 
     return X_train_scaled, X_val_scaled, X_test_scaled, y_train, y_val, y_test, model
 
 if nn_check:
     st.markdown("<h2>Neural Network Model</h2>", unsafe_allow_html=True)
     
-    x_train, x_val, x_test, y_train, y_val, y_test, model = preprocess_data(combined_df, target_column)
-    
     left_column, right_column = st.columns(2)
-    left_column.text("Enter number of epochs, batch size:")
+    left_column.text("Enter number of epochs, batch size, learning rate:")
     
-    ll, rl = left_column.columns(2)
-    epochs = ll.number_input("", min_value=1, max_value=100, value=1, step=1, label_visibility='collapsed', key='lr')
-    batch_size = rl.number_input("", min_value=1, max_value=len(x_train), value=1, step=1, label_visibility='collapsed', key='rr')
+    ll, cl, rl = left_column.columns(3)
+    epochs = ll.number_input("", min_value=1, max_value=100, value=1, step=1, label_visibility='collapsed', key='ll')
+    batch_size = cl.number_input("", min_value=1, max_value=85, value=1, step=1, label_visibility='collapsed', key='cl')
+    learning_rate = rl.number_input("", min_value=1e-6, max_value=1.0, value=1e-3, step=1e-6, format="%f", label_visibility='collapsed', key='rl')
+    
+    x_train, x_val, x_test, y_train, y_val, y_test, model_nn = preprocess_data(combined_df, target_column, learning_rate)
     
     # Fit the model
-    history = model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(x_val, y_val), verbose=1)
+    @st.cache_data
+    def nn_model_fit(_model, x_train, y_train, epochs, batch_size, validation_data, verbose=0):
+        history = _model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=validation_data, verbose=verbose)
+        return history
+    history_nn = nn_model_fit(model_nn, x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(x_val, y_val), verbose=0)
 
     fig = plt.figure(figsize=(12, 4))
-    plt.plot(history.history['loss'], label='Train Loss')
-    plt.plot(history.history['val_loss'], label='Test Loss')
+    plt.plot(history_nn.history['loss'], label='Train Loss')
+    plt.plot(history_nn.history['val_loss'], label='Test Loss')
     plt.title('Model Loss')
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
     plt.legend()
     st.pyplot(fig)
     
-    y_pred = model.predict(x_test)
+    # Effettuiamo le predizioni sul test
+    y_pred_nn = model_nn.predict(x_test)
 
     # Valuta le prestazioni del modello
-    mse = mean_squared_error(y_test, y_pred)
-    left_column.markdown(f'**Mean Squared Error**: {mse}')
+    mse_nn = mean_squared_error(y_test, y_pred_nn)
+    left_column.markdown(f'**Mean Squared Error**: {mse_nn}')
     
-    fig = plot_differencies(y_test.index, y_test, y_test.index, y_pred)
+    fig = plot_differencies(y_test.index, y_test, y_test.index, y_pred_nn)
     right_column.pyplot(fig)
     
 

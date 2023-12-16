@@ -18,3 +18,4 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow import keras
 from keras.layers import Dense, SpatialDropout3D
 from keras.models import Sequential
+from keras.optimizers import Adam
