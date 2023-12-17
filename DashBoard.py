@@ -334,20 +334,17 @@ if var_check:
         results = model.fit(lags)
         return results
     results_var = var_model_fit(df_diff_train, lags_var)
-    
-    results_fitted = results_var.fittedvalues.iloc[1:]
-    # Compute RMSE (Root Mean Squared Error) e AIC (Akaike Information Criterion)
-    min_length = min(len(df_diff_train), len(results_fitted))  # make shapes compatible
-    rmse_var = rmse_function(df_diff_train.iloc[:min_length], results_fitted.iloc[:min_length])
-    aic_var = aic(results_var.aic, len(df_diff_train.columns), df_modelwc=len(results_var.params))
-    left_column.markdown(f'**RMSE**: {rmse_var}')
-    left_column.markdown(f'**AIC**: {aic_var}')
 
     # Effettuiamo le predizioni sul test
     lag_order = results_var.k_ar
     forecast_var = results_var.forecast(df_diff_train.values[-lag_order:], steps=len(df_diff_test))
     target_forecast_var = forecast_var[:, 0]    # estraiamo solo la colonna relativa al target
     comparison_var = pd.DataFrame({'Predicted': target_forecast_var, 'Actual': df_diff_test['no. of Adult males']})
+    
+    rmse_var = np.sqrt(mean_squared_error(comparison_var['Actual'], comparison_var['Predicted']))
+    mae_var = mean_absolute_error(comparison_var['Actual'], comparison_var['Predicted'])
+    left_column.markdown(f'**RMSE**: {rmse_var}')
+    left_column.markdown(f'**MAE**: {mae_var}')
 
     fig = plot_differencies(comparison_var.index, comparison_var['Actual'], comparison_var.index, comparison_var['Predicted'])
     right_column.pyplot(fig)
@@ -372,9 +369,9 @@ if arimax_check:
     left_column.text("Enter the order:")
     
     ll, cl, rl = left_column.columns(3)
-    AR_ord = ll.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='ll')
-    I_ord = cl.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='cl')
-    MA_ord = rl.number_input("", min_value=0, max_value=10, value=1, step=1, label_visibility='collapsed', key='rl')
+    AR_ord = ll.number_input("AR", min_value=0, max_value=10, value=1, step=1, key='ll')
+    I_ord = cl.number_input("I", min_value=0, max_value=10, value=1, step=1, key='cl')
+    MA_ord = rl.number_input("MA", min_value=0, max_value=10, value=1, step=1, key='rl')
     selected_order = (AR_ord,I_ord,MA_ord)
     
     # Concateniamo training e validation
@@ -482,9 +479,9 @@ if rt_check:
     left_column.text("Enter max_depth, min_samples_split, min_samples_leaf:")
     
     ll, cl, rl = left_column.columns(3)
-    max_depth = ll.number_input("", min_value=1, max_value=10, value=1, step=1, label_visibility='collapsed', key='ll')
-    min_samples_split = cl.number_input("", min_value=2, max_value=10, value=2, step=1, label_visibility='collapsed', key='cl')
-    min_samples_leaf = rl.number_input("", min_value=1, max_value=10, value=1, step=1, label_visibility='collapsed', key='rl')
+    max_depth = ll.number_input("max depth", min_value=1, max_value=10, value=1, step=1, key='ll')
+    min_samples_split = cl.number_input("split", min_value=2, max_value=10, value=2, step=1, key='cl')
+    min_samples_leaf = rl.number_input("leaf", min_value=1, max_value=10, value=1, step=1, key='rl')
     
     # Splittiamo il dataset in train e test (90-10)
     train_size = int(len(combined_df)*0.9)
@@ -549,7 +546,7 @@ def preprocess_data(dataframe, target_column, lr):
     # Define MLP model
     model = Sequential()
     model.add(Dense(1000, activation='relu', input_shape=(X_train_scaled.shape[1],)))
-    #model.add(Dense(500, activation='relu'))
+    model.add(Dense(500, activation='relu'))
     #model.add(Dense(1000, activation='relu'))
     #model.add(Dense(1000, activation='relu'))
     #model.add(Dense(1000, activation='relu'))
@@ -567,9 +564,9 @@ if nn_check:
     left_column.text("Enter number of epochs, batch size, learning rate:")
     
     ll, cl, rl = left_column.columns(3)
-    epochs = ll.number_input("", min_value=1, max_value=100, value=1, step=1, label_visibility='collapsed', key='ll')
-    batch_size = cl.number_input("", min_value=1, max_value=85, value=1, step=1, label_visibility='collapsed', key='cl')
-    learning_rate = rl.number_input("", min_value=1e-6, max_value=1.0, value=1e-3, step=1e-6, format="%f", label_visibility='collapsed', key='rl')
+    epochs = ll.number_input("epochs", min_value=1, max_value=100, value=1, step=1, key='ll')
+    batch_size = cl.number_input("batch size", min_value=1, max_value=85, value=1, step=1, key='cl')
+    learning_rate = rl.number_input("learning rate", min_value=1e-6, max_value=1.0, value=1e-3, step=1e-6, format="%f", key='rl')
     
     x_train, x_val, x_test, y_train, y_val, y_test, model_nn = preprocess_data(combined_df, target_column, learning_rate)
     
@@ -598,6 +595,12 @@ if nn_check:
     
     fig = plot_differencies(y_test.index, y_test, y_test.index, y_pred_nn)
     right_column.pyplot(fig)
+    
+    
+    
+    ## FORECASTING ##
+    #if var_check:
+     #   f
     
 
 
