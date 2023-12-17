@@ -349,17 +349,6 @@ if var_check:
     fig = plot_differencies(comparison_var.index, comparison_var['Actual'], comparison_var.index, comparison_var['Predicted'])
     right_column.pyplot(fig)
     
-    # Plottiamo l'andamento della serie reale e delle predizioni
-    fig, ax = plt.subplots(figsize=(15, 4))
-    ax.plot(df_diff_train.index, df_diff_train.iloc[:, 0], label='Training', marker='o')
-    ax.plot(df_diff_val.index, df_diff_val.iloc[:, 0], label='Validation', marker='s')
-    ax.plot(df_diff_test.index, target_forecast_var, label='Predicted', linestyle='dashed', marker='o')
-    ax.set_title('Actual vs Predicted Values (First Column)')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Your Y-axis label for the first column')
-    ax.legend()
-    st.pyplot(fig)
-    
     
 # Addestriamo il modello ARIMAX
 if arimax_check:
@@ -369,9 +358,9 @@ if arimax_check:
     left_column.text("Enter the order:")
     
     ll, cl, rl = left_column.columns(3)
-    AR_ord = ll.number_input("AR", min_value=0, max_value=10, value=1, step=1, key='ll')
-    I_ord = cl.number_input("I", min_value=0, max_value=10, value=1, step=1, key='cl')
-    MA_ord = rl.number_input("MA", min_value=0, max_value=10, value=1, step=1, key='rl')
+    AR_ord = ll.number_input("AR", min_value=0, max_value=10, value=1, step=1, key='lll')
+    I_ord = cl.number_input("I", min_value=0, max_value=10, value=1, step=1, key='cll')
+    MA_ord = rl.number_input("MA", min_value=0, max_value=10, value=1, step=1, key='rll')
     selected_order = (AR_ord,I_ord,MA_ord)
     
     # Concateniamo training e validation
@@ -479,9 +468,9 @@ if rt_check:
     left_column.text("Enter max_depth, min_samples_split, min_samples_leaf:")
     
     ll, cl, rl = left_column.columns(3)
-    max_depth = ll.number_input("max depth", min_value=1, max_value=10, value=1, step=1, key='ll')
-    min_samples_split = cl.number_input("split", min_value=2, max_value=10, value=2, step=1, key='cl')
-    min_samples_leaf = rl.number_input("leaf", min_value=1, max_value=10, value=1, step=1, key='rl')
+    max_depth = ll.number_input("max depth", min_value=1, max_value=10, value=1, step=1, key='l')
+    min_samples_split = cl.number_input("split", min_value=2, max_value=10, value=2, step=1, key='c')
+    min_samples_leaf = rl.number_input("leaf", min_value=1, max_value=10, value=1, step=1, key='r')
     
     # Splittiamo il dataset in train e test (90-10)
     train_size = int(len(combined_df)*0.9)
@@ -547,9 +536,6 @@ def preprocess_data(dataframe, target_column, lr):
     model = Sequential()
     model.add(Dense(1000, activation='relu', input_shape=(X_train_scaled.shape[1],)))
     model.add(Dense(500, activation='relu'))
-    #model.add(Dense(1000, activation='relu'))
-    #model.add(Dense(1000, activation='relu'))
-    #model.add(Dense(1000, activation='relu'))
     model.add(Dense(1))  # Output layer
 
     # Compile the model
@@ -576,15 +562,6 @@ if nn_check:
         history = _model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=validation_data, verbose=verbose)
         return history
     history_nn = nn_model_fit(model_nn, x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(x_val, y_val), verbose=0)
-
-    fig = plt.figure(figsize=(12, 4))
-    plt.plot(history_nn.history['loss'], label='Train Loss')
-    plt.plot(history_nn.history['val_loss'], label='Test Loss')
-    plt.title('Model Loss')
-    plt.ylabel('Loss')
-    plt.xlabel('Epoch')
-    plt.legend()
-    st.pyplot(fig)
     
     # Effettuiamo le predizioni sul test
     y_pred_nn = model_nn.predict(x_test)
@@ -596,12 +573,37 @@ if nn_check:
     fig = plot_differencies(y_test.index, y_test, y_test.index, y_pred_nn)
     right_column.pyplot(fig)
     
-    
+    fig = plt.figure(figsize=(10, 4))
+    plt.plot(history_nn.history['loss'], label='Train Loss')
+    plt.plot(history_nn.history['val_loss'], label='Test Loss')
+    plt.title('Model Loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend()
+    left_column.pyplot(fig)
+
     
     ## FORECASTING ##
     #if var_check:
      #   f
     
+
+    '''
+    
+    
+    # Plottiamo l'andamento della serie reale e delle predizioni
+    fig, ax = plt.subplots(figsize=(15, 4))
+    ax.plot(df_diff_train.index, df_diff_train.iloc[:, 0], label='Training', marker='o')
+    ax.plot(df_diff_val.index, df_diff_val.iloc[:, 0], label='Validation', marker='s')
+    ax.plot(df_diff_test.index, target_forecast_var, label='Predicted', linestyle='dashed', marker='o')
+    ax.set_title('Actual vs Predicted Values (First Column)')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Your Y-axis label for the first column')
+    ax.legend()
+    st.pyplot(fig)
+    
+    
+    '''
 
 
 
