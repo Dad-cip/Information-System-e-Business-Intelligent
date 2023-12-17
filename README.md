@@ -6,15 +6,15 @@ Il seguente progetto riporta 4 esercizi:
 
 Per l'avvio del 2 esercizio è necessario avere installato un ambiente virtuale 'venv' all'interno della cartella di progetto, 
 che nello specifico dovrà contenere una versione di py 3.11.7 (o altre omologate per l'installazione di tensorflow).
-Dopo averlo attivato, da terminale (in ambiente virtuale) bisogna lanciare il comando:
+Dopo averlo attivato, da terminale (in ambiente virtuale) bisogna lanciare i seguenti comandi:
 **pip install -r .\requirements.txt**
 **streamlit run .\Dashboard.py**
 
-Per il corretto utilizzo dell'4 sono necessarie delle estensioni, quali:
+Per il corretto utilizzo dell'esercizio 4 sono necessarie delle estensioni, quali:
 - Groovy
 - Bonita Admin Application
 - Email
 - REST
 - Database
-In particolare, bisogna configurare opportunamente il provider fittizio,
+In particolare, bisogna configurare opportunamente il provider e-mail fittizio,
 seguendo la relativa documentazione: 'https://documentation.bonitasoft.com/bonita/2021.1/configure-email-connector'.
