@@ -300,12 +300,10 @@ with st.sidebar:
 
 
 ## MODEL FITTING ##
-# Splittiamo il dataset differenziato (80-10-10)
-train_size = int(len(df_diff)*0.8)
-val_size = int(len(df_diff)*0.1)
-df_diff_train = df_diff.iloc[:train_size+1]
-df_diff_val = df_diff.iloc[train_size+1:train_size+val_size+1]
-df_diff_test = df_diff.iloc[train_size+val_size+1:]
+# Splittiamo il dataset differenziato (90-10)
+train_size = int(len(df_diff)*0.9)
+df_diff_train = df_diff.iloc[:train_size]
+df_diff_test = df_diff.iloc[train_size:]
 
 # Definiamo la funzione che crea il grafico delle differenze tra i valori di test reali e predetti
 @st.cache_data
@@ -362,19 +360,16 @@ if arimax_check:
     I_ord = cl.number_input("I", min_value=0, max_value=10, value=1, step=1, key='cll')
     MA_ord = rl.number_input("MA", min_value=0, max_value=10, value=1, step=1, key='rll')
     selected_order = (AR_ord,I_ord,MA_ord)
-    
-    # Concateniamo training e validation
-    df_diff_train_val = pd.concat([df_diff_train, df_diff_val])
-    
+        
     # Definiamo le variabili esogene per il training
-    exog_vars = df_diff_train_val[['relativehumidity_mean','temperature_mean']]
+    exog_vars = df_diff_train[['relativehumidity_mean','temperature_mean']]
 
     @st.cache_data
     def arimax_model_fit(df_train, target_column, exog_vars, order): 
         model = ARIMA(df_train[target_column], exog = exog_vars, order=order)
         results = model.fit()
         return results
-    results_arimax = arimax_model_fit(df_diff_train_val, target_column, exog_vars, selected_order)    
+    results_arimax = arimax_model_fit(df_diff_train, target_column, exog_vars, selected_order)    
     
     # Effettuiamo le predizioni sul test
     start_date = df_diff_test.index[0]
@@ -584,24 +579,34 @@ if nn_check:
 
     
     ## FORECASTING ##
-    #if var_check:
-     #   f
-    
-
-    '''
-    
+    st.title('Forecasting')
+    df_forecasting = df.copy()
+    df_forecasting = df_forecasting[(df_forecasting[date_column] > df_target.index.max())]
     
     # Plottiamo l'andamento della serie reale e delle predizioni
     fig, ax = plt.subplots(figsize=(15, 4))
-    ax.plot(df_diff_train.index, df_diff_train.iloc[:, 0], label='Training', marker='o')
-    ax.plot(df_diff_val.index, df_diff_val.iloc[:, 0], label='Validation', marker='s')
+    ax.plot(df_target.index, df_target[target_column], label='Actual', marker='o')
+    
+   # end_prediction = st.date_input("End Prediction Date", df[date_column].max(), df[date_column].min(), df[date_column].max())
+
+    #if var_check:
+
+
+
+
+        
+    
+    #ax.plot(df_.index, df_diff_val.iloc[:, 0], label='Validation', marker='s')
     ax.plot(df_diff_test.index, target_forecast_var, label='Predicted', linestyle='dashed', marker='o')
-    ax.set_title('Actual vs Predicted Values (First Column)')
+    ax.set_title('Actual & Predicted')
     ax.set_xlabel('Date')
-    ax.set_ylabel('Your Y-axis label for the first column')
+    ax.set_ylabel(target_column)
     ax.legend()
     st.pyplot(fig)
-    
+
+    '''
+    if var_check:
+       f
     
     '''
 
