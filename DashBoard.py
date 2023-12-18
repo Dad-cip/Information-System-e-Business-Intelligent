@@ -536,7 +536,7 @@ def preprocess_data(dataframe, target_column, lr):
     model = Sequential()
     model.add(Dense(1000, activation='relu', input_shape=(X_train_scaled.shape[1],)))
     model.add(Dense(500, activation='relu'))
-    model.add(Dense(1))  # Output layer
+    model.add(Dense(1, activation='relu'))  # Output layer
 
     # Compile the model
     model.compile(optimizer=Adam(learning_rate=lr), loss='mean_squared_error')
