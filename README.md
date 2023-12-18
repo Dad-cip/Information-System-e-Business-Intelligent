@@ -16,5 +16,7 @@ Per il corretto utilizzo dell'esercizio 4 sono necessarie delle estensioni, qual
 - Email
 - REST
 - Database
+- Same task user
+- Actor filter initiator
 In particolare, bisogna configurare opportunamente il provider e-mail fittizio,
 seguendo la relativa documentazione: 'https://documentation.bonitasoft.com/bonita/2021.1/configure-email-connector'.
