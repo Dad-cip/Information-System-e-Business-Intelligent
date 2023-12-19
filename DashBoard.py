@@ -449,7 +449,8 @@ def create_combined_dataset(dataframe, optimal_lags, target_column):
                 combined_df[f'{column}_lag_{lag}'] = dataframe[column].shift(lag)
 
     # Add the original target variable
-    combined_df[target_column] = dataframe[target_column]
+    if target_column != '':
+        combined_df[target_column] = dataframe[target_column]
 
     # Remove rows with NaN values created by lagging
     combined_df.dropna(inplace=True)
@@ -473,7 +474,7 @@ if rt_check:
     df_test = combined_df.iloc[train_size:]
     X_train = df_train.drop(target_column, axis=1)
     y_train = df_train[target_column]
-    X_test = df_test.drop(target_column, axis=1)
+    X_test_tree = df_test.drop(target_column, axis=1)
     y_test = df_test[target_column]
     
     @st.cache_data
@@ -484,7 +485,7 @@ if rt_check:
     model_rt = rt_model_fit(X_train, y_train, max_depth=max_depth, min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split)
     
     # Effettuiamo le predizioni sul test
-    y_pred_rt = model_rt.predict(X_test)
+    y_pred_rt = model_rt.predict(X_test_tree)
 
     # Valutiamo le prestazioni del modello
     mse_rt = mean_squared_error(y_test, y_pred_rt)
@@ -518,14 +519,14 @@ def preprocess_data(dataframe, target_column, lr):
     y_train = y.iloc[:train_size+1]
     X_val = X.iloc[train_size+1:train_size+1+val_size]
     y_val = y.iloc[train_size+1:train_size+1+val_size]
-    X_test = X.iloc[train_size+1+val_size:]
+    X_test_nn = X.iloc[train_size+1+val_size:]
     y_test = y.iloc[train_size+1+val_size:]
 
     # Normalize features
     scaler = MinMaxScaler(feature_range=(0, 1))
     X_train_scaled = scaler.fit_transform(X_train)
     X_val_scaled = scaler.transform(X_val)
-    X_test_scaled = scaler.transform(X_test)
+    X_test_scaled = scaler.transform(X_test_nn)
 
     # Define MLP model
     model = Sequential()
@@ -545,7 +546,7 @@ if nn_check:
     left_column.text("Enter number of epochs, batch size, learning rate:")
     
     ll, cl, rl = left_column.columns(3)
-    epochs = ll.number_input("epochs", min_value=1, max_value=100, value=1, step=1, key='ll')
+    epochs = ll.number_input("epochs", min_value=1, max_value=100, value=10, step=1, key='ll')
     batch_size = cl.number_input("batch size", min_value=1, max_value=85, value=1, step=1, key='cl')
     learning_rate = rl.number_input("learning rate", min_value=1e-6, max_value=1.0, value=1e-3, step=1e-6, format="%f", key='rl')
     
@@ -581,34 +582,79 @@ if nn_check:
     ## FORECASTING ##
     st.title('Forecasting')
     df_forecasting = df.copy()
-    df_forecasting = df_forecasting[(df_forecasting[date_column] > df_target.index.max())]
-    
+    df_forecasting[date_column] = pd.to_datetime(df_forecasting[date_column])
+    df_forecasting = df_forecasting.set_index(date_column)
+
+    # Differeneziamo il dataset per renderlo stazionario
+    df_diff_forecasting = df_forecasting.diff(diff_order).dropna()
+
     # Plottiamo l'andamento della serie reale e delle predizioni
     fig, ax = plt.subplots(figsize=(15, 4))
     ax.plot(df_target.index, df_target[target_column], label='Actual', marker='o')
     
-   # end_prediction = st.date_input("End Prediction Date", df[date_column].max(), df[date_column].min(), df[date_column].max())
+#    end_prediction = st.date_input("End Prediction Date", df_forecasting.index.max(), df_forecasting.get(df_diff_test.index.max()), df_forecasting.index.max())
+    end_prediction = st.date_input("End Prediction Date", df_forecasting.index.max(), df_diff_test.index.max()+timedelta(1), df_forecasting.index.max())
+    end_prediction = pd.to_datetime(end_prediction)
+    df_diff_forecasting = df_diff_forecasting[(df_diff_forecasting.index > df_diff_test.index.max()) & (df_diff_forecasting.index <= end_prediction)]
 
-    #if var_check:
+    df_diff_forecasting = pd.concat([df_diff_test, df_diff_forecasting], axis=0)
+
+    # Plottiamo l'andamento della serie reale e delle predizioni
+    fig, ax = plt.subplots(figsize=(15, 4))
+    ax.plot(df_target.index, df_target[target_column], label='Actual', marker='o')
+   
+
+    if var_check:
+        # Effettuiamo le predizioni sul test
+        lag_order = results_var.k_ar
+        forecast_var = results_var.forecast(df_diff_train.values[-lag_order:], steps=len(df_diff_forecasting))
+        target_forecast_var = forecast_var[:, 0]    # estraiamo solo la colonna relativa al target
+        target_forecast_var = target_forecast_var.cumsum()
+        target_forecast_var[target_forecast_var<0] = 0 
+        target_forecast_var = target_forecast_var[len(df_diff_test):]
+        df_diff_forecasting_plot = df_diff_forecasting.copy()
+        df_diff_forecasting_plot = df_diff_forecasting_plot[df_diff_forecasting_plot.index > df_diff_test.index.max()] 
+        ax.plot(df_diff_forecasting_plot.index, target_forecast_var, label='VAR', linestyle='dashed', marker='o')
 
 
-
-
+    if arimax_check:
+        # Effettuiamo le predizioni sul test
+        start_date = df_diff_forecasting.index[0]
+        end_date = end_prediction
+        forecast_arimax = results_arimax.predict(start = start_date, end = end_date, exog=df_diff_forecasting[['relativehumidity_mean','temperature_mean']])
+        forecast_arimax = forecast_arimax.cumsum()
+        forecast_arimax[forecast_arimax<0] = 0 
+        forecast_arimax = forecast_arimax[len(df_diff_test):]        
+        ax.plot(df_diff_forecasting_plot.index, forecast_arimax, label='ARIMAX', linestyle='dashed', marker='o')
         
-    
-    #ax.plot(df_.index, df_diff_val.iloc[:, 0], label='Validation', marker='s')
-    ax.plot(df_diff_test.index, target_forecast_var, label='Predicted', linestyle='dashed', marker='o')
+
+    if rt_check:
+        df_combinate_forecasting = df_forecasting[(df_forecasting.index >= X_test_tree.index.max()) & (df_forecasting.index <= end_prediction)]
+
+        df_combinate_forecasting = create_combined_dataset(df_combinate_forecasting.drop(columns='selected'), optimal_lags, '')
+        
+        y_pred_rt = model_rt.predict(df_combinate_forecasting)
+        y_pred_rt[y_pred_rt < 0] = 0 
+
+        ax.plot(df_combinate_forecasting.index, y_pred_rt, label='Regression Tree', linestyle='dashed', marker='o')
+
+
+
+    if nn_check:
+        # Normalize features
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        df_forecasting_scaled = scaler.fit_transform(df_combinate_forecasting)
+
+        y_pred_nn = model_nn.predict(df_forecasting_scaled)
+
+        ax.plot(df_combinate_forecasting.index, y_pred_nn, label='Neural Network', linestyle='dashed', marker='o')
+
+
     ax.set_title('Actual & Predicted')
     ax.set_xlabel('Date')
     ax.set_ylabel(target_column)
     ax.legend()
     st.pyplot(fig)
-
-    '''
-    if var_check:
-       f
-    
-    '''
 
 
 
