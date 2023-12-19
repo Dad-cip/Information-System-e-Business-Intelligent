@@ -688,82 +688,80 @@ if nn_check:
     left_column.pyplot(fig)
 
     
-    ## FORECASTING ##
-    st.title('Forecasting')
-    df_forecasting = df.copy()
-    df_forecasting[date_column] = pd.to_datetime(df_forecasting[date_column])
-    df_forecasting = df_forecasting.set_index(date_column)
+## FORECASTING ##
+st.title('Forecasting')
+df_forecasting = df.copy()
+df_forecasting[date_column] = pd.to_datetime(df_forecasting[date_column])
+df_forecasting = df_forecasting.set_index(date_column)
 
-    # Differeneziamo il dataset per renderlo stazionario
-    df_diff_forecasting = df_forecasting.diff(diff_order).dropna()
+# Differeneziamo il dataset per renderlo stazionario
+df_diff_forecasting = df_forecasting.diff(diff_order).dropna()
 
-    # Plottiamo l'andamento della serie reale e delle predizioni
-    fig, ax = plt.subplots(figsize=(15, 4))
-    ax.plot(df_target.index, df_target[target_column], label='Actual', marker='o')
+# Plottiamo l'andamento della serie reale e delle predizioni
+fig, ax = plt.subplots(figsize=(15, 4))
+ax.plot(df_target.index, df_target[target_column], label='Actual', marker='o')
+
+end_prediction = st.date_input("End Prediction Date", df_forecasting.index.max(), df_diff_test.index.max()+timedelta(1), df_forecasting.index.max())
+end_prediction = pd.to_datetime(end_prediction)
+df_diff_forecasting = df_diff_forecasting[(df_diff_forecasting.index > df_diff_test.index.max()) & (df_diff_forecasting.index <= end_prediction)]
+
+df_diff_forecasting = pd.concat([df_diff_test, df_diff_forecasting], axis=0)
+
+# Plottiamo l'andamento della serie reale e delle predizioni
+fig, ax = plt.subplots(figsize=(15, 4))
+ax.plot(df_target.index, df_target[target_column], label='Actual', marker='o')
+
+
+if var_check:
+    # Effettuiamo le predizioni sul test
+    lag_order = results_var.k_ar
+    forecast_var = results_var.forecast(df_diff_train.values[-lag_order:], steps=len(df_diff_forecasting))
+    target_forecast_var = forecast_var[:, 0]    # estraiamo solo la colonna relativa al target
+    target_forecast_var = target_forecast_var.cumsum()
+    target_forecast_var[target_forecast_var<0] = 0 
+    target_forecast_var = target_forecast_var[len(df_diff_test):]
+    df_diff_forecasting_plot = df_diff_forecasting.copy()
+    df_diff_forecasting_plot = df_diff_forecasting_plot[df_diff_forecasting_plot.index > df_diff_test.index.max()] 
+    ax.plot(df_diff_forecasting_plot.index, target_forecast_var, label='VAR', linestyle='dashed', marker='o')
+
+
+if arimax_check:
+    # Effettuiamo le predizioni sul test
+    start_date = df_diff_forecasting.index[0]
+    end_date = end_prediction
+    forecast_arimax = results_arimax.predict(start = start_date, end = end_date, exog=df_diff_forecasting[['relativehumidity_mean','temperature_mean']])
+    forecast_arimax = forecast_arimax.cumsum()
+    forecast_arimax[forecast_arimax<0] = 0 
+    forecast_arimax = forecast_arimax[len(df_diff_test):]        
+    ax.plot(df_diff_forecasting_plot.index, forecast_arimax, label='ARIMAX', linestyle='dashed', marker='o')
     
-#    end_prediction = st.date_input("End Prediction Date", df_forecasting.index.max(), df_forecasting.get(df_diff_test.index.max()), df_forecasting.index.max())
-    end_prediction = st.date_input("End Prediction Date", df_forecasting.index.max(), df_diff_test.index.max()+timedelta(1), df_forecasting.index.max())
-    end_prediction = pd.to_datetime(end_prediction)
-    df_diff_forecasting = df_diff_forecasting[(df_diff_forecasting.index > df_diff_test.index.max()) & (df_diff_forecasting.index <= end_prediction)]
 
-    df_diff_forecasting = pd.concat([df_diff_test, df_diff_forecasting], axis=0)
+if rt_check:
+    df_combinate_forecasting = df_forecasting[(df_forecasting.index >= X_test_tree.index.max()) & (df_forecasting.index <= end_prediction)]
 
-    # Plottiamo l'andamento della serie reale e delle predizioni
-    fig, ax = plt.subplots(figsize=(15, 4))
-    ax.plot(df_target.index, df_target[target_column], label='Actual', marker='o')
-   
+    df_combinate_forecasting = create_combined_dataset(df_combinate_forecasting.drop(columns='selected'), optimal_lags, '')
+    
+    y_pred_rt = model_rt.predict(df_combinate_forecasting)
+    y_pred_rt[y_pred_rt < 0] = 0 
 
-    if var_check:
-        # Effettuiamo le predizioni sul test
-        lag_order = results_var.k_ar
-        forecast_var = results_var.forecast(df_diff_train.values[-lag_order:], steps=len(df_diff_forecasting))
-        target_forecast_var = forecast_var[:, 0]    # estraiamo solo la colonna relativa al target
-        target_forecast_var = target_forecast_var.cumsum()
-        target_forecast_var[target_forecast_var<0] = 0 
-        target_forecast_var = target_forecast_var[len(df_diff_test):]
-        df_diff_forecasting_plot = df_diff_forecasting.copy()
-        df_diff_forecasting_plot = df_diff_forecasting_plot[df_diff_forecasting_plot.index > df_diff_test.index.max()] 
-        ax.plot(df_diff_forecasting_plot.index, target_forecast_var, label='VAR', linestyle='dashed', marker='o')
+    ax.plot(df_combinate_forecasting.index, y_pred_rt, label='Regression Tree', linestyle='dashed', marker='o')
 
 
-    if arimax_check:
-        # Effettuiamo le predizioni sul test
-        start_date = df_diff_forecasting.index[0]
-        end_date = end_prediction
-        forecast_arimax = results_arimax.predict(start = start_date, end = end_date, exog=df_diff_forecasting[['relativehumidity_mean','temperature_mean']])
-        forecast_arimax = forecast_arimax.cumsum()
-        forecast_arimax[forecast_arimax<0] = 0 
-        forecast_arimax = forecast_arimax[len(df_diff_test):]        
-        ax.plot(df_diff_forecasting_plot.index, forecast_arimax, label='ARIMAX', linestyle='dashed', marker='o')
-        
+if nn_check:
+    # Normalize features
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    df_forecasting_scaled = scaler.fit_transform(df_combinate_forecasting)
 
-    if rt_check:
-        df_combinate_forecasting = df_forecasting[(df_forecasting.index >= X_test_tree.index.max()) & (df_forecasting.index <= end_prediction)]
+    y_pred_nn = model_nn.predict(df_forecasting_scaled)
 
-        df_combinate_forecasting = create_combined_dataset(df_combinate_forecasting.drop(columns='selected'), optimal_lags, '')
-        
-        y_pred_rt = model_rt.predict(df_combinate_forecasting)
-        y_pred_rt[y_pred_rt < 0] = 0 
-
-        ax.plot(df_combinate_forecasting.index, y_pred_rt, label='Regression Tree', linestyle='dashed', marker='o')
+    ax.plot(df_combinate_forecasting.index, y_pred_nn, label='Neural Network', linestyle='dashed', marker='o')
 
 
-
-    if nn_check:
-        # Normalize features
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        df_forecasting_scaled = scaler.fit_transform(df_combinate_forecasting)
-
-        y_pred_nn = model_nn.predict(df_forecasting_scaled)
-
-        ax.plot(df_combinate_forecasting.index, y_pred_nn, label='Neural Network', linestyle='dashed', marker='o')
-
-
-    ax.set_title('Actual & Predicted')
-    ax.set_xlabel('Date')
-    ax.set_ylabel(target_column)
-    ax.legend()
-    st.pyplot(fig)
+ax.set_title('Actual & Predicted')
+ax.set_xlabel('Date')
+ax.set_ylabel(target_column)
+ax.legend()
+st.pyplot(fig)
 
 
 
