@@ -20,3 +20,5 @@ Per il corretto utilizzo dell'esercizio 4 sono necessarie delle estensioni, qual
 - Actor filter initiator
 In particolare, bisogna configurare opportunamente il provider e-mail fittizio,
 seguendo la relativa documentazione: 'https://documentation.bonitasoft.com/bonita/2021.1/configure-email-connector'.
+
+N.B. Eventualmente non si avesse a disposizione un provider fittizio, ne è stato allegato uno all'interno della cartella 'fakeSMTP-latest' che permette di eseguire il server di ricezione e-mail per il corretto funzionamento del workflow di Bonita.

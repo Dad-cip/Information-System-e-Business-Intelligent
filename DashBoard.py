@@ -24,6 +24,16 @@ date_column_target = 'Date'
 
 @st.cache_data
 def load_data(url, date_col):
+    """
+    Load data from an url in a pandas dataframe, setting the date column indicated.
+
+    Args:
+    url (str): The url from which download the data.
+    date_col (str): The name of the date column in the dataframe.
+
+    Returns:
+    pd.dataframe: Dataframe containing the loaded data.
+    """
     df = pd.read_csv(url, sep=';', parse_dates=[date_col])
     df.fillna(method='ffill', inplace=True)
     df['temperature_mean'] = df['temperature_mean'].str.replace(',', '.').astype(float)
@@ -171,6 +181,14 @@ if right_check:
 
 # Definizione della callback di aggiornamento della variabile di stato
 def update(df,key):
+    """
+    Update the state variable to preserve persistence of the changes made on the visualized table.
+
+    Args:
+    df (str): The dataframe name that has to be modified.
+    key (str): The key to access the modified table in the session state.
+
+    """
     for elem in st.session_state[key]['edited_rows']:
         st.session_state[df]['selected'][elem] = st.session_state[key]['edited_rows'][elem]['selected']
 
@@ -243,6 +261,19 @@ left_column, right_column = st.columns(2)
 # Grafico ACF
 @st.cache_data
 def acf_plot(df, target_column, lags, title, zero=False):
+    """
+    Compute the plot of the ACF of the selected column.
+
+    Args:
+    df (pd.DataFrame): The input dataframe.
+    target_column (str): The name of the target column in the dataframe.
+    lags (int): The number of lags to show in the plot.
+    title (str): The title to show above the graph.
+    zero (boolean, optional): Flag indicating whether to include the 0-lag autocorrelation. Default is False.
+
+    Returns:
+    Figure: The created Figure.
+    """
     return sgt.plot_acf(df[target_column], lags=lags, zero=zero, title=title)
 fig_acf = acf_plot(df_target, target_column, lags, title="Autocorrelation of no. of Adult males")
 left_column.pyplot(fig_acf)
@@ -250,6 +281,20 @@ left_column.pyplot(fig_acf)
 # Grafico PACF
 @st.cache_data
 def pacf_plot(df, target_column, lags, title, zero=False, method='ols'):
+    """
+    Compute the plot of the PACF of the selected column.
+
+    Args:
+    df (pd.DataFrame): The input dataframe.
+    target_column (str): The name of the target column in the dataframe.
+    lags (int): The number of lags to show in the plot.
+    title (str): The title to show above the graph.
+    zero (boolean, optional): Flag indicating whether to include the 0-lag autocorrelation. Default is False.
+    method (str, optional): Specifies which method for the calculations to use. Default is 'ols'.
+
+    Returns:
+    Figure: The created Figure.
+    """
     return sgt.plot_pacf(df[target_column], lags=lags, zero=zero, method=method, title=title)
 fig_pacf = pacf_plot(df_target, target_column, lags, title="PACF of no. of Adult males")
 right_column.pyplot(fig_pacf)
@@ -308,6 +353,18 @@ df_diff_test = df_diff.iloc[train_size:]
 # Definiamo la funzione che crea il grafico delle differenze tra i valori di test reali e predetti
 @st.cache_data
 def plot_differencies(_x1,y1,_x2,y2):
+    """
+    Generate a line plot comparing the differences between two columns from two Pandas DataFrames.
+
+    Args:
+    _x1 (pd.Series): The x-values for the actual dataset.
+    y1 (pd.Series): The y-values for the actual dataset.
+    _x2 (pd.Series): The x-values for the predicted dataset.
+    y2 (pd.Series): The y-values for the predicted dataset.
+
+    Returns:
+    Figure: The created Figure.
+    """
     fig = plt.figure(figsize=(10, 4))
     plt.plot(_x1, y1, label='Actual', color='blue')
     plt.plot(_x2, y2, label='Predicted', color='red')
@@ -328,6 +385,17 @@ if var_check:
     
     @st.cache_data
     def var_model_fit(df_train, lags): 
+        """
+        Fit a VAR model on the provided training dataset.
+
+        Args:
+        df_train (pd.DataFrame): The training dataset.
+        lags (int): The number of lags to consider in the VAR model.
+
+        Returns:
+        statsmodels.tsa.vector_ar.var_model.VARResults: The training results.
+        
+        """
         model = VAR(df_train)
         results = model.fit(lags)
         return results
@@ -366,6 +434,19 @@ if arimax_check:
 
     @st.cache_data
     def arimax_model_fit(df_train, target_column, exog_vars, order): 
+        """
+        Fit an ARIMAX model on the provided training dataset.
+
+        Args:
+        df_train (pd.DataFrame): The training dataset.
+        target_column (str): The name of the target column in the dataset.
+        exog_vars (list): The list of columns to consider as exogenous variables.
+        order (tuple): The desired order for the ARIMAX model.
+
+        Returns:
+        statsmodels.tsa.arima.model.ARIMAResults: The training results.
+        
+        """
         model = ARIMA(df_train[target_column], exog = exog_vars, order=order)
         results = model.fit()
         return results
@@ -479,6 +560,19 @@ if rt_check:
     
     @st.cache_data
     def rt_model_fit(X_train, y_train, max_depth, min_samples_leaf, min_samples_split): 
+        """
+        Fit a Regression Tree model on the provided training dataset.
+
+        Args:
+        X_train (pd.DataFrame): The input features of the training dataset.
+        y_train (pd.Series): The target values of the training dataset.
+        max_depth (int): The maximum depth of the tree.
+        min_samples_leaf (int): The minimum number of samples required to be at a leaf node.
+        min_samples_split (int): The minimum number of samples required to split an internal node.
+
+        Returns:
+        sklearn.tree.DecisionTreeRegressor: The trained model.
+        """
         model = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split)
         model.fit(X_train, y_train)
         return model
@@ -555,6 +649,21 @@ if nn_check:
     # Fit the model
     @st.cache_data
     def nn_model_fit(_model, x_train, y_train, epochs, batch_size, validation_data, verbose=0):
+        """
+        Fit a neural network model on the provided training dataset.
+
+        Args:
+        _model (Model): The neural network model to be trained.
+        x_train (pd.DataFrame): The input features of the training dataset.
+        y_train (pd.Series): The target values of the training dataset.
+        epochs (int): The number of epochs to train the model.
+        batch_size (int): The batch size used for training.
+        validation_data (tuple): Tuple (x_val, y_val) for validation data.
+        verbose (int, optional): Verbosity mode. Default is 0.
+
+        Returns:
+        tensorflow.python.keras.callbacks.History: The training history of the model.
+        """
         history = _model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=validation_data, verbose=verbose)
         return history
     history_nn = nn_model_fit(model_nn, x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(x_val, y_val), verbose=0)
