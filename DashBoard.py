@@ -425,7 +425,7 @@ if arimax_check:
     
     ll, cl, rl = left_column.columns(3)
     AR_ord = ll.number_input("AR", min_value=0, max_value=10, value=1, step=1, key='lll')
-    I_ord = cl.number_input("I", min_value=0, max_value=10, value=1, step=1, key='cll')
+    I_ord = cl.number_input("I", min_value=0, max_value=10, value=0, step=1, key='cll')
     MA_ord = rl.number_input("MA", min_value=0, max_value=10, value=1, step=1, key='rll')
     selected_order = (AR_ord,I_ord,MA_ord)
         
@@ -545,9 +545,9 @@ if rt_check:
     left_column.text("Enter max_depth, min_samples_split, min_samples_leaf:")
     
     ll, cl, rl = left_column.columns(3)
-    max_depth = ll.number_input("max depth", min_value=1, max_value=10, value=1, step=1, key='l')
-    min_samples_split = cl.number_input("split", min_value=2, max_value=10, value=2, step=1, key='c')
-    min_samples_leaf = rl.number_input("leaf", min_value=1, max_value=10, value=1, step=1, key='r')
+    max_depth = ll.number_input("max depth", min_value=1, max_value=10, value=7, step=1, key='l')
+    min_samples_split = cl.number_input("split", min_value=2, max_value=10, value=5, step=1, key='c')
+    min_samples_leaf = rl.number_input("leaf", min_value=1, max_value=10, value=2, step=1, key='r')
     
     # Splittiamo il dataset in train e test (90-10)
     train_size = int(len(combined_df)*0.9)
@@ -644,7 +644,7 @@ if nn_check:
     batch_size = cl.number_input("batch size", min_value=1, max_value=85, value=1, step=1, key='cl')
     learning_rate = rl.number_input("learning rate", min_value=1e-6, max_value=1.0, value=1e-3, step=1e-6, format="%f", key='rl')
     
-    x_train, x_val, x_test, y_train, y_val, y_test, model_nn = preprocess_data(combined_df, target_column, learning_rate)
+    x_train, x_val, x_test_nn, y_train, y_val, y_test, model_nn = preprocess_data(combined_df, target_column, learning_rate)
     
     # Fit the model
     @st.cache_data
@@ -669,7 +669,7 @@ if nn_check:
     history_nn = nn_model_fit(model_nn, x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(x_val, y_val), verbose=0)
     
     # Effettuiamo le predizioni sul test
-    y_pred_nn = model_nn.predict(x_test)
+    y_pred_nn = model_nn.predict(x_test_nn)
 
     # Valuta le prestazioni del modello
     mse_nn = mean_squared_error(y_test, y_pred_nn)
@@ -732,15 +732,17 @@ if arimax_check:
     forecast_arimax = results_arimax.predict(start = start_date, end = end_date, exog=df_diff_forecasting[['relativehumidity_mean','temperature_mean']])
     forecast_arimax = forecast_arimax.cumsum()
     forecast_arimax[forecast_arimax<0] = 0 
-    forecast_arimax = forecast_arimax[len(df_diff_test):]        
+    forecast_arimax = forecast_arimax[len(df_diff_test):]    
+    df_diff_forecasting_plot = df_diff_forecasting.copy()
+    df_diff_forecasting_plot = df_diff_forecasting_plot[df_diff_forecasting_plot.index > df_diff_test.index.max()]    
     ax.plot(df_diff_forecasting_plot.index, forecast_arimax, label='ARIMAX', linestyle='dashed', marker='o')
     
 
-if rt_check:
+if rt_check:    
     df_combinate_forecasting = df_forecasting[(df_forecasting.index >= X_test_tree.index.max()) & (df_forecasting.index <= end_prediction)]
 
     df_combinate_forecasting = create_combined_dataset(df_combinate_forecasting.drop(columns='selected'), optimal_lags, '')
-    
+
     y_pred_rt = model_rt.predict(df_combinate_forecasting)
     y_pred_rt[y_pred_rt < 0] = 0 
 
@@ -748,6 +750,10 @@ if rt_check:
 
 
 if nn_check:
+    df_combinate_forecasting = df_forecasting[(df_forecasting.index >= df_target.index.max()) & (df_forecasting.index <= end_prediction)]
+
+    df_combinate_forecasting = create_combined_dataset(df_combinate_forecasting.drop(columns='selected'), optimal_lags, '')
+    
     # Normalize features
     scaler = MinMaxScaler(feature_range=(0, 1))
     df_forecasting_scaled = scaler.fit_transform(df_combinate_forecasting)
